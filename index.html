@@ -236,7 +236,22 @@ footer {
 }
 .scan-view {
   position: relative;
-  min-height: 93.48vh;
+  min-height: 98vh;
+}
+.manual-link-btn {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 94.2vh;
+  text-align: center;
+  background: none;
+  border: none;
+  color: #0E4F8C;
+  font-family: "Kanit", "Segoe UI", sans-serif;
+  font-size: 2.2vh;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
 }
 .scan-frame {
   position: absolute;
@@ -487,6 +502,19 @@ footer {
 }
 .qty-row input::placeholder {
   color: #AEB4B8;
+}
+.qty-row select {
+  width: 246px;
+  height: 4.27vh;
+  border: 2px solid #AEB4B8;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0 12px;
+  color: #000000;
+  font-family: "Kanit", "Segoe UI", sans-serif;
+  font-size: 2.49vh;
+  line-height: 1;
+  outline: none;
 }
 .form-valid {
   width: 340px;
@@ -900,7 +928,9 @@ var receiveState = {
 };
 var homeHtmlCache = "";
 var currentLineUserId = "";
+var currentEmployeeDisplayName = "";
 var liffReady_ = false;
+var partOptionsCache_ = null;
 function withTimeout_(promise, ms) {
   return Promise.race([
     promise,
@@ -956,6 +986,7 @@ function loadInitialData() {
       var userName = document.getElementById("homeUserName");
       if (userName && data && data.employee) {
         userName.textContent = data.employee.displayName || data.employee.name || "Unknown";
+        currentEmployeeDisplayName = data.employee.displayName || data.employee.name || "Unknown";
       }
     })
     .catch(function(err) {
@@ -982,6 +1013,7 @@ function goHome() {
 }
 function showScanView() {
   receiveState.scanResult = null;
+  receiveState.isManual = false;
   receiveState.form = {
     total: "",
     ok: "",
@@ -1001,6 +1033,9 @@ function showScanView() {
         ${cameraIcon()}
         <span>เริ่มสแกน</span>
       </button>
+      <button class="manual-link-btn" type="button" onclick="showManualEntryView()">
+        กรอกข้อมูลด้วยตัวเอง
+      </button>
     </div>
   `;
 }
@@ -1012,7 +1047,6 @@ async function startScan() {
   try{
       const result = await liff.scanCodeV2();
       if(!result || !result.value) return;
-    alert("ค่าที่สแกนได้ (raw):\n" + result.value);
       api("scanReceive", { rawScan: result.value, lineUserId: currentLineUserId })
         .then(function(data){
             if(!data || !data.ok){
@@ -1033,6 +1067,141 @@ async function startScan() {
       console.log(e);
       alert("สแกนไม่สำเร็จ: " + (e && e.message ? e.message : e));
   }
+}
+async function showManualEntryView() {
+  if (!partOptionsCache_) {
+    try {
+      var res = await api("getPartOptions", {});
+      partOptionsCache_ = (res && res.ok && res.options) ? res.options : [];
+    } catch (e) {
+      console.log(e);
+      alert("โหลดข้อมูล Part ไม่สำเร็จ");
+      partOptionsCache_ = [];
+    }
+  }
+  var missions = [];
+  var seenMission = {};
+  partOptionsCache_.forEach(function(opt) {
+    var m = opt.mission || "";
+    if (!m || seenMission[m]) return;
+    seenMission[m] = true;
+    missions.push(m);
+  });
+  var missionOptionsHtml = '<option value="">เลือก Mission</option>' +
+    missions.map(function(m) {
+      return '<option value="' + escapeHtml(m) + '">' + escapeHtml(m) + '</option>';
+    }).join("");
+  document.getElementById("receiveContent").innerHTML = `
+    <div class="result-view">
+      <h2 class="scan-ok-title">
+        <span>กรอกข้อมูลด้วยตัวเอง</span>
+      </h2>
+      <section class="qty-form">
+        <div class="qty-row">
+          <label>Mission</label>
+          <select id="manualMission" onchange="onManualMissionChange()">
+            ${missionOptionsHtml}
+          </select>
+        </div>
+        <div class="qty-row">
+          <label>Part No</label>
+          <select id="manualPartNumber" onchange="updateManualForm()" disabled>
+            <option value="">เลือก Mission ก่อน</option>
+          </select>
+        </div>
+        <div class="qty-row">
+          <label>Batch</label>
+          <input id="manualBatch" type="text" placeholder="กรอก Batch" oninput="updateManualForm()">
+        </div>
+        <div class="qty-row">
+          <label>Total</label>
+          <input id="manualTotal" type="number" inputmode="numeric" placeholder="ใส่จำนวนตัวเลข" oninput="updateManualForm()">
+        </div>
+        <div class="qty-row">
+          <label>OK</label>
+          <input id="manualOk" type="number" inputmode="numeric" placeholder="ใส่จำนวนตัวเลข" oninput="updateManualForm()">
+        </div>
+        <div class="qty-row">
+          <label>NG</label>
+          <input id="manualNg" type="number" inputmode="numeric" placeholder="ใส่จำนวนตัวเลข" oninput="updateManualForm()">
+        </div>
+      </section>
+      <div class="form-valid">
+        ${checkCircleIcon()}
+        <span>OK + NG = Total</span>
+      </div>
+      <div class="action-row">
+        <button class="action-btn rescan-btn" type="button" onclick="showScanView()">
+          <span>ยกเลิก</span>
+        </button>
+        <button id="manualNextBtn" class="action-btn confirm-btn" type="button" onclick="submitManualEntry()" disabled>
+          ${downloadIcon()}
+          <span>ถัดไป</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+function onManualMissionChange() {
+  var mission = document.getElementById("manualMission").value;
+  var partSelect = document.getElementById("manualPartNumber");
+  if (!mission) {
+    partSelect.innerHTML = '<option value="">เลือก Mission ก่อน</option>';
+    partSelect.disabled = true;
+    updateManualForm();
+    return;
+  }
+  var parts = partOptionsCache_.filter(function(opt) {
+    return (opt.mission || "") === mission;
+  });
+  partSelect.innerHTML = '<option value="">เลือก Part No</option>' +
+    parts.map(function(p) {
+      var label = (p.partNumber || "") + " - " + (p.partName || "");
+      return '<option value="' + escapeHtml(p.partNumber) + '">' + escapeHtml(label) + '</option>';
+    }).join("");
+  partSelect.disabled = false;
+  updateManualForm();
+}
+function updateManualForm() {
+  var mission = document.getElementById("manualMission").value;
+  var partNumber = document.getElementById("manualPartNumber").value;
+  var batch = document.getElementById("manualBatch").value.trim();
+  var total = Number(document.getElementById("manualTotal").value || 0);
+  var ok = Number(document.getElementById("manualOk").value || 0);
+  var ng = Number(document.getElementById("manualNg").value || 0);
+  var nextBtn = document.getElementById("manualNextBtn");
+  var valid = mission && partNumber && batch && total > 0 && ok >= 0 && ng >= 0 && ok + ng === total;
+  if (valid) {
+    nextBtn.disabled = false;
+    nextBtn.classList.add("ready");
+  } else {
+    nextBtn.disabled = true;
+    nextBtn.classList.remove("ready");
+  }
+}
+function submitManualEntry() {
+  var mission = document.getElementById("manualMission").value;
+  var partNumber = document.getElementById("manualPartNumber").value;
+  var batch = document.getElementById("manualBatch").value.trim();
+  var total = Number(document.getElementById("manualTotal").value || 0);
+  var ok = Number(document.getElementById("manualOk").value || 0);
+  var ng = Number(document.getElementById("manualNg").value || 0);
+  var part = partOptionsCache_.find(function(opt) {
+    return (opt.mission || "") === mission && (opt.partNumber || "") === partNumber;
+  });
+  if (!part) {
+    alert("ไม่พบข้อมูล Part นี้");
+    return;
+  }
+  receiveState.isManual = true;
+  receiveState.scanResult = {
+    employee: { displayName: currentEmployeeDisplayName || "Unknown" },
+    part: { mission: part.mission, partName: part.partName, partNumber: part.partNumber },
+    parsed: { batch: batch },
+    rawScan: "MANUAL_ENTRY"
+  };
+  receiveState.form = { total: total, ok: ok, ng: ng };
+  showConfirmView();
 }
 function showResultView(result) {
   var batchHtml = "";
@@ -1211,12 +1380,13 @@ function saveReceiveData() {
     total: form.total,
     ok: form.ok,
     ng: form.ng,
-    tagType: result.parsed.tagType,
-    scanCode: result.parsed.scanCode,
+    tagType: result.parsed ? result.parsed.tagType : "",
+    scanCode: result.parsed ? result.parsed.scanCode : "",
     rawScan: result.rawScan,
     lineUserId: currentLineUserId
   };
-  api("saveReceive", { payload: payload })
+  var action = receiveState.isManual ? "saveManualReceive" : "saveReceive";
+  api(action, { payload: payload })
     .then(function(data) {
       if (data && data.ok) {
         showSuccessView();
