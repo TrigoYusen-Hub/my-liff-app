@@ -267,6 +267,10 @@ body {
   color: #F39800;
 }
 
+.icon-purple {
+  color: #7C4DFF;
+}
+
 .card-copy {
   display: flex;
   flex-direction: column;
@@ -333,6 +337,40 @@ footer {
   font-weight: 400;
   color: #555555;
   line-height: 1.6;
+}
+
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 5, 19, .55);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.9vh;
+}
+
+.loading-overlay.show {
+  display: flex;
+}
+
+.loading-overlay-spinner {
+  width: 5.69vh;
+  height: 5.69vh;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin_ 0.8s linear infinite;
+}
+
+.loading-overlay-text {
+  margin: 0;
+  color: #ffffff;
+  text-align: center;
+  font-size: 2.13vh;
+  line-height: 1.5;
+  font-weight: 700;
 }
 
 .receive-page {
@@ -1350,6 +1388,21 @@ footer {
         </span>
       </button>
 
+      <button class="menu-card" type="button" onclick="openDailyWork()">
+        <span class="card-icon icon-purple">
+          <svg viewBox="0 0 96 96" aria-hidden="true">
+            <rect x="18" y="14" width="60" height="74" rx="8" fill="none" stroke="currentColor" stroke-width="5"></rect>
+            <rect x="36" y="8" width="24" height="14" rx="4" fill="currentColor"></rect>
+            <path d="M30 46L42 58L68 32" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M30 70H66" stroke="currentColor" stroke-width="6" stroke-linecap="round"></path>
+          </svg>
+        </span>
+        <span class="card-copy card-copy-small">
+          <span class="card-title">เพิ่มงานรายวัน</span>
+          <span class="card-subtitle">บันทึกผลงาน OK/NG ประจำวัน</span>
+        </span>
+      </button>
+
       <button class="menu-card menu-card-large" type="button" onclick="openWithdraw()">
         <span class="card-icon icon-blue">
           <svg viewBox="0 0 96 96" aria-hidden="true">
@@ -1406,9 +1459,14 @@ footer {
 
     <footer>
       <div class="footer-brand">TRIGO YUSEN HUB</div>
-      <div class="footer-meta">Version 1.0.0<br>&copy; 2026 TRIGO</div>
+      <div class="footer-meta">Version 1.1.0<br>&copy; 2026 TRIGO</div>
     </footer>
 </main>
+
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-overlay-spinner"></div>
+  <p class="loading-overlay-text">กำลังโหลด<br>กรุณารอสักครู่...</p>
+</div>
 
 <template id="receive-template">
 <section class="receive-page">
@@ -1439,9 +1497,7 @@ var GAS_API = "https://script.google.com/macros/s/AKfycbxeASt8OLOAIj9GIuJUGUGS6i
 var receiveState = {
   scanResult: null,
   form: {
-    total: "",
-    ok: "",
-    ng: ""
+    total: ""
   }
 };
 
@@ -1461,16 +1517,32 @@ function withTimeout_(promise, ms) {
   ]);
 }
 
+function showLoadingOverlay_() {
+  var overlay = document.getElementById("loadingOverlay");
+  if (overlay) overlay.classList.add("show");
+}
+
+function hideLoadingOverlay_() {
+  var overlay = document.getElementById("loadingOverlay");
+  if (overlay) overlay.classList.remove("show");
+}
+
 async function api(action, extra) {
   var body = Object.assign({ action: action }, extra || {});
 
-  var res = await fetch(GAS_API, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify(body)
-  });
+  showLoadingOverlay_();
 
-  return res.json();
+  try {
+    var res = await fetch(GAS_API, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(body)
+    });
+
+    return await res.json();
+  } finally {
+    hideLoadingOverlay_();
+  }
 }
 
 document.addEventListener("DOMContentLoaded", async function () {
@@ -1606,9 +1678,7 @@ function showScanView() {
   receiveState.scanResult = null;
   receiveState.isManual = false;
   receiveState.form = {
-    total: "",
-    ok: "",
-    ng: ""
+    total: ""
   };
 
   document.getElementById("receiveContent").innerHTML = `
@@ -1786,20 +1856,7 @@ async function showManualEntryView() {
           <label>Total</label>
           <input id="manualTotal" type="number" inputmode="numeric" placeholder="ใส่จำนวนตัวเลข" oninput="updateManualForm()">
         </div>
-        <div class="qty-row">
-          <label>OK</label>
-          <input id="manualOk" type="number" inputmode="numeric" placeholder="ใส่จำนวนตัวเลข" oninput="updateManualForm()">
-        </div>
-        <div class="qty-row">
-          <label>NG</label>
-          <input id="manualNg" type="number" inputmode="numeric" placeholder="ใส่จำนวนตัวเลข" oninput="updateManualForm()">
-        </div>
       </section>
-
-      <div class="form-valid">
-        ${checkCircleIcon()}
-        <span>OK + NG = Total</span>
-      </div>
 
       <div class="action-row">
         <button class="action-btn rescan-btn" type="button" onclick="showScanView()">
@@ -1844,11 +1901,9 @@ function updateManualForm() {
   var partNumber = document.getElementById("manualPartNumber").value;
   var batch = document.getElementById("manualBatch").value.trim();
   var total = Number(document.getElementById("manualTotal").value || 0);
-  var ok = Number(document.getElementById("manualOk").value || 0);
-  var ng = Number(document.getElementById("manualNg").value || 0);
   var nextBtn = document.getElementById("manualNextBtn");
 
-  var valid = mission && partNumber && batch && total > 0 && ok >= 0 && ng >= 0 && ok + ng === total;
+  var valid = mission && partNumber && batch && total > 0;
 
   if (valid) {
     nextBtn.disabled = false;
@@ -1864,8 +1919,6 @@ function submitManualEntry() {
   var partNumber = document.getElementById("manualPartNumber").value;
   var batch = document.getElementById("manualBatch").value.trim();
   var total = Number(document.getElementById("manualTotal").value || 0);
-  var ok = Number(document.getElementById("manualOk").value || 0);
-  var ng = Number(document.getElementById("manualNg").value || 0);
 
   var part = partOptionsCache_.find(function(opt) {
     return (opt.mission || "") === mission && (opt.partNumber || "") === partNumber;
@@ -1883,7 +1936,7 @@ function submitManualEntry() {
     parsed: { batch: batch },
     rawScan: "MANUAL_ENTRY"
   };
-  receiveState.form = { total: total, ok: ok, ng: ng };
+  receiveState.form = { total: total };
 
   showConfirmView();
 }
@@ -1896,12 +1949,11 @@ function showResultView(result) {
       <section class="batch-panel">
         <h3 class="batch-title">
           ${warningIcon()}
-          <span>Batch นี้เคยบันทึกแล้ว</span>
+          <span>Batch นี้เคยรับมาแล้ว</span>
         </h3>
         <div class="batch-lines">
-          <div>ครั้งที่&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${result.batchInfo.count}</div>
-          <div>OK สะสม&nbsp;: ${result.batchInfo.ok}</div>
-          <div>NG สะสม : ${result.batchInfo.ng}</div>
+          <div>รับมาแล้ว&nbsp;&nbsp;&nbsp;: ${result.batchInfo.count} ครั้ง</div>
+          <div>รวมทั้งหมด&nbsp;: ${result.batchInfo.total} ชิ้น</div>
         </div>
       </section>
     `;
@@ -1931,20 +1983,7 @@ function showResultView(result) {
           <label>Total</label>
           <input id="totalInput" type="number" inputmode="numeric" placeholder="ใส่จำนวนตัวเลข" oninput="updateQtyForm()">
         </div>
-        <div class="qty-row">
-          <label>OK</label>
-          <input id="okInput" type="number" inputmode="numeric" placeholder="ใส่จำนวนตัวเลข" oninput="updateQtyForm()">
-        </div>
-        <div class="qty-row">
-          <label>NG</label>
-          <input id="ngInput" type="number" inputmode="numeric" placeholder="ใส่จำนวนตัวเลข" oninput="updateQtyForm()">
-        </div>
       </section>
-
-      <div class="form-valid">
-        ${checkCircleIcon()}
-        <span>OK + NG = Total</span>
-      </div>
 
       <div class="action-row">
         <button class="action-btn rescan-btn" type="button" onclick="showScanView()">
@@ -1962,17 +2001,13 @@ function showResultView(result) {
 
 function updateQtyForm() {
   var total = Number(document.getElementById("totalInput").value || 0);
-  var ok = Number(document.getElementById("okInput").value || 0);
-  var ng = Number(document.getElementById("ngInput").value || 0);
   var confirmBtn = document.getElementById("confirmBtn");
 
   receiveState.form = {
-    total: total,
-    ok: ok,
-    ng: ng
+    total: total
   };
 
-  if (total > 0 && ok >= 0 && ng >= 0 && ok + ng === total) {
+  if (total > 0) {
     confirmBtn.disabled = false;
     confirmBtn.classList.add("ready");
   } else {
@@ -2043,16 +2078,8 @@ function showConfirmView() {
 
       <section class="confirm-qty">
         <div class="confirm-qty-row">
-          <span>Total</span>
+          <span>จำนวนที่รับ</span>
           <span>${form.total}</span>
-        </div>
-        <div class="confirm-qty-row">
-          <span>OK</span>
-          <span>${form.ok}</span>
-        </div>
-        <div class="confirm-qty-row">
-          <span>NG</span>
-          <span>${form.ng}</span>
         </div>
       </section>
 
@@ -2086,8 +2113,6 @@ function saveReceiveData() {
     partNumber: result.part.partNumber,
     batch: result.parsed.batch,
     total: form.total,
-    ok: form.ok,
-    ng: form.ng,
     tagType: result.parsed ? result.parsed.tagType : "",
     scanCode: result.parsed ? result.parsed.scanCode : "",
     rawScan: result.rawScan,
@@ -2551,6 +2576,314 @@ function showWithdrawSuccess_(data) {
   `;
 }
 
+var dailyWorkState = {};
+
+function openDailyWork() {
+  dailyWorkState = { mission: "", partNumber: "", partName: "", batch: "", receivedTotal: 0, remaining: 0, ok: 0, ng: 0 };
+  openFeaturePage_("เพิ่มงานรายวัน");
+  showDailyWorkMissionPicker();
+}
+
+async function showDailyWorkMissionPicker() {
+  if (!partOptionsCache_) {
+    try {
+      var res = await api("getPartOptions", {});
+      partOptionsCache_ = (res && res.ok && res.options) ? res.options : [];
+    } catch (e) {
+      alert("โหลดข้อมูล Part ไม่สำเร็จ");
+      partOptionsCache_ = [];
+    }
+  }
+
+  var missions = [];
+  var seen = {};
+
+  partOptionsCache_.forEach(function(opt) {
+    var m = opt.mission || "";
+    if (!m || seen[m]) return;
+    seen[m] = true;
+    missions.push(m);
+  });
+
+  renderPicker_({
+    context: [],
+    heading: "เลือก Mission",
+    searchPlaceholder: "ค้นหา Mission",
+    items: missions.map(function(m) { return { title: m, value: m }; }),
+    onSelect: function(item) {
+      dailyWorkState.mission = item.value;
+      showDailyWorkPartPicker();
+    }
+  });
+}
+
+function showDailyWorkPartPicker() {
+  var parts = partOptionsCache_.filter(function(opt) {
+    return (opt.mission || "") === dailyWorkState.mission;
+  });
+
+  renderPicker_({
+    context: [{ label: "Mission", value: dailyWorkState.mission }],
+    heading: "เลือก Part",
+    searchPlaceholder: "ค้นหา Part",
+    items: parts.map(function(p) {
+      return { title: p.partNumber, sub: p.partName, value: p.partNumber, partName: p.partName };
+    }),
+    onSelect: function(item) {
+      dailyWorkState.partNumber = item.value;
+      dailyWorkState.partName = item.partName;
+      showDailyWorkBatchPicker();
+    }
+  });
+}
+
+async function showDailyWorkBatchPicker() {
+  var res;
+
+  try {
+    res = await api("getBatchOptions", { partNumber: dailyWorkState.partNumber });
+  } catch (e) {
+    alert("โหลดข้อมูล Batch ไม่สำเร็จ");
+    res = { ok: false, options: [] };
+  }
+
+  var batches = (res && res.ok && res.options) ? res.options : [];
+
+  if (batches.length === 0) {
+    showBatchNotFoundView_();
+    return;
+  }
+
+  renderPicker_({
+    context: [
+      { label: "Mission", value: dailyWorkState.mission },
+      { label: "Part No.", value: dailyWorkState.partNumber }
+    ],
+    heading: "เลือก Batch",
+    searchPlaceholder: "ค้นหา Batch",
+    items: batches.map(function(b) {
+      return { title: b.batch, sub: "เหลือต้องทำ : " + b.remaining, value: b.batch, receivedTotal: b.receivedTotal, remaining: b.remaining };
+    }),
+    onSelect: function(item) {
+      dailyWorkState.batch = item.value;
+      dailyWorkState.receivedTotal = item.receivedTotal;
+      dailyWorkState.remaining = item.remaining;
+
+      if (item.remaining <= 0) {
+        showNoStockView_("Batch นี้ทำครบแล้ว ไม่มีงานคงเหลือ");
+        return;
+      }
+
+      showDailyWorkQtyEntry();
+    }
+  });
+}
+
+function showDailyWorkQtyEntry() {
+  document.getElementById("receiveContent").innerHTML = `
+    <div class="result-view">
+      <p class="picker-context">Mission : ${escapeHtml(dailyWorkState.mission)}</p>
+      <p class="picker-context">Part No. : ${escapeHtml(dailyWorkState.partNumber)}</p>
+      <p class="picker-context">Batch No. : ${escapeHtml(dailyWorkState.batch)}</p>
+
+      <div class="stock-box">
+        <div class="stock-box-label">เหลือต้องทำ (จากรับเข้า ${dailyWorkState.receivedTotal})</div>
+        <div class="stock-box-value">${dailyWorkState.remaining} Pcs</div>
+      </div>
+
+      <label class="qty-label-full">OK วันนี้ (ชิ้น)</label>
+      <input id="dailyWorkOkInput" class="qty-input-full" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkQtyForm_()">
+
+      <label class="qty-label-full">NG วันนี้ (ชิ้น)</label>
+      <input id="dailyWorkNgInput" class="qty-input-full" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkQtyForm_()">
+
+      <div class="warn-box">OK + NG ห้ามเกินยอดคงเหลือ</div>
+
+      <div class="action-row">
+        <button class="action-btn rescan-btn" type="button" onclick="showDailyWorkBatchPicker()">
+          <span>ย้อนกลับ</span>
+        </button>
+        <button id="dailyWorkNextBtn" class="action-btn confirm-btn" type="button" onclick="showDailyWorkConfirm()" disabled>
+          ${downloadIcon()}
+          <span>ถัดไป</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function updateDailyWorkQtyForm_() {
+  var ok = Number(document.getElementById("dailyWorkOkInput").value || 0);
+  var ng = Number(document.getElementById("dailyWorkNgInput").value || 0);
+  var btn = document.getElementById("dailyWorkNextBtn");
+  var valid = ok >= 0 && ng >= 0 && ok + ng > 0 && ok + ng <= dailyWorkState.remaining;
+
+  if (valid) {
+    btn.disabled = false;
+    btn.classList.add("ready");
+  } else {
+    btn.disabled = true;
+    btn.classList.remove("ready");
+  }
+}
+
+function showDailyWorkConfirm() {
+  var ok = Number(document.getElementById("dailyWorkOkInput").value || 0);
+  var ng = Number(document.getElementById("dailyWorkNgInput").value || 0);
+  dailyWorkState.ok = ok;
+  dailyWorkState.ng = ng;
+
+  document.getElementById("receiveContent").innerHTML = `
+    <div class="confirm-view">
+      <h2 class="confirm-heading">ตรวจสอบข้อมูลก่อนกดยืนยัน</h2>
+
+      <section class="confirm-card">
+        <div class="info-row">
+          <span>วันที่</span>
+          <span class="info-value">${formatNow()}</span>
+        </div>
+        <div class="info-row">
+          <span>ผู้บันทึก</span>
+          <span class="info-value">${escapeHtml(currentEmployeeDisplayName || "Unknown")}</span>
+        </div>
+        <div class="info-row">
+          <span>Mission</span>
+          <span class="info-value">${escapeHtml(dailyWorkState.mission)}</span>
+        </div>
+        <div class="info-row">
+          <span>Part Name</span>
+          <span class="info-value">${escapeHtml(dailyWorkState.partName)}</span>
+        </div>
+        <div class="info-row">
+          <span>Part No.</span>
+          <span class="info-value">${escapeHtml(dailyWorkState.partNumber)}</span>
+        </div>
+        <div class="info-row">
+          <span>Batch</span>
+          <span class="info-value">${escapeHtml(dailyWorkState.batch)}</span>
+        </div>
+      </section>
+
+      <section class="confirm-qty">
+        <div class="confirm-qty-row">
+          <span>OK</span>
+          <span>${ok}</span>
+        </div>
+        <div class="confirm-qty-row">
+          <span>NG</span>
+          <span>${ng}</span>
+        </div>
+        <div class="confirm-qty-row">
+          <span>เหลือหลังบันทึก</span>
+          <span>${dailyWorkState.remaining - ok - ng}</span>
+        </div>
+      </section>
+
+      <button class="save-btn" type="button" onclick="saveDailyWork_()">
+        ${checkCircleWhiteIcon()}
+        <span>ยืนยัน</span>
+      </button>
+
+      <button class="edit-btn" type="button" onclick="showDailyWorkQtyEntry()">
+        ${editIcon()}
+        <span>แก้ไขข้อมูล</span>
+      </button>
+    </div>
+  `;
+}
+
+function saveDailyWork_() {
+  var saveBtn = document.querySelector(".save-btn");
+
+  if (saveBtn) {
+    if (saveBtn.disabled) return;
+    saveBtn.disabled = true;
+  }
+
+  api("logDailyWork", {
+    payload: {
+      partNumber: dailyWorkState.partNumber,
+      batch: dailyWorkState.batch,
+      ok: dailyWorkState.ok,
+      ng: dailyWorkState.ng,
+      lineUserId: currentLineUserId
+    }
+  }).then(function(data) {
+    if (data && data.ok) {
+      showDailyWorkSuccess_(data);
+      return;
+    }
+    if (saveBtn) saveBtn.disabled = false;
+    alert((data && data.error) || "บันทึกไม่สำเร็จ");
+  }).catch(function(err) {
+    if (saveBtn) saveBtn.disabled = false;
+    alert(err.message || err);
+  });
+}
+
+function showDailyWorkSuccess_(data) {
+  document.getElementById("receiveContent").innerHTML = `
+    <div class="confirm-view">
+      <h2 class="confirm-heading-success">
+        ${checkCircleIcon()}
+        <span>บันทึกงานรายวันเรียบร้อย</span>
+      </h2>
+
+      <section class="confirm-card">
+        <div class="info-row">
+          <span>วันที่</span>
+          <span class="info-value">${formatNow()}</span>
+        </div>
+        <div class="info-row">
+          <span>ผู้บันทึก</span>
+          <span class="info-value">${escapeHtml(currentEmployeeDisplayName || "Unknown")}</span>
+        </div>
+        <div class="info-row">
+          <span>Mission</span>
+          <span class="info-value">${escapeHtml(data.mission)}</span>
+        </div>
+        <div class="info-row">
+          <span>Part Name</span>
+          <span class="info-value">${escapeHtml(data.partName)}</span>
+        </div>
+        <div class="info-row">
+          <span>Part No.</span>
+          <span class="info-value">${escapeHtml(data.partNumber)}</span>
+        </div>
+        <div class="info-row">
+          <span>Batch</span>
+          <span class="info-value">${escapeHtml(data.batch)}</span>
+        </div>
+      </section>
+
+      <section class="confirm-qty">
+        <div class="confirm-qty-row">
+          <span>OK</span>
+          <span>${data.okEntered}</span>
+        </div>
+        <div class="confirm-qty-row">
+          <span>NG</span>
+          <span>${data.ngEntered}</span>
+        </div>
+        <div class="confirm-qty-row">
+          <span>เหลือหลังบันทึก</span>
+          <span>${data.remainingAfter}</span>
+        </div>
+      </section>
+
+      <button class="static-primary-btn" type="button" onclick="goHome()">
+        ${homeWhiteIcon()}
+        <span>กลับหน้าแรก</span>
+      </button>
+
+      <button class="static-secondary-btn" type="button" onclick="openDailyWork()">
+        ${refreshIcon()}
+        <span>ลงงานเพิ่ม</span>
+      </button>
+    </div>
+  `;
+}
+
 var returnNGState = {};
 
 function openReturnNG() {
@@ -2960,8 +3293,12 @@ function showCheckStockResult_(data) {
       <p class="picker-context">Batch No. : ${escapeHtml(data.batch)}</p>
 
       <div class="stat-row">
-        <span>ยอดงานทั้งหมด</span>
-        <span>${data.total}</span>
+        <span>ยอดรับเข้าทั้งหมด</span>
+        <span>${data.receivedTotal}</span>
+      </div>
+      <div class="stat-row">
+        <span>เหลือต้องทำ</span>
+        <span>${data.remaining}</span>
       </div>
       <div class="stat-row stat-ng">
         <span>NG คงเหลือ</span>
