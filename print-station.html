@@ -37,17 +37,15 @@
     color: #fff;
     display: flex;
     flex-direction: column;
-    padding: 28px 20px;
+    padding: 16px 20px 28px;
   }
   .brand-card {
     display: flex;
     align-items: center;
     justify-content: flex-start;
+    margin-bottom: 28px;
   }
-  .brand-logo { width: 100%; max-width: 180px; height: auto; display: block; }
-
-  .sidebar-icon { margin: 26px 0; display: flex; justify-content: center; }
-  .sidebar-icon img { width: 110px; height: auto; display: block; }
+  .brand-logo { width: 100%; max-width: 220px; height: auto; display: block; }
 
   .sidebar-nav { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
   .nav-btn {
@@ -195,7 +193,6 @@
   @media (max-width: 720px) {
     .app-shell { flex-direction: column; height: auto; min-height: 100vh; }
     .sidebar { width: auto; flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 14px; padding: 16px; }
-    .sidebar-icon { margin: 0; }
     .sidebar-controls { flex-direction: row; margin-top: 0; width: auto; }
     .sidebar-controls button { width: auto; }
     .sidebar-spacer { display: none; }
@@ -267,10 +264,6 @@
   <aside class="sidebar">
     <div class="brand-card">
       <img class="brand-logo" src="print-station-logo.png" alt="TRIGO Global Quality Solutions">
-    </div>
-
-    <div class="sidebar-icon">
-      <img src="print-station-printer.png" alt="Zebra label printer">
     </div>
 
     <div class="sidebar-nav">
