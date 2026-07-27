@@ -3212,8 +3212,9 @@ async function showPresenceEditAddEmployeeView_() {
       return { title: e.name, sub: presenceEmployeeTeam_(e.site), value: e.employeeId };
     }),
     onSelect: function(item) {
+      var src = available.find(function(e) { return e.employeeId === item.value; });
       goto_(function() {
-        showPresenceEditForm_({ employeeId: item.value, employeeName: item.title, start: "08:00", end: "17:00", otType: "normal", isCarOwner: false });
+        showPresenceEditForm_({ employeeId: item.value, employeeName: item.title, start: "08:00", end: "17:00", otType: "normal", isCarOwner: false, team: src ? presenceEmployeeTeam_(src.site) : "" });
       });
     }
   });
@@ -3228,12 +3229,28 @@ function padTimeStr_(t) {
   return pad2_(Number(parts[0])) + ":" + pad2_(Number(parts[1]));
 }
 
+// เที่ยวเดินทางที่กำลังแก้ (โหลดจากของเดิมตอนเข้าฟอร์มครั้งแรก แล้วแก้สดใน
+// จอ ไม่ยิง API จนกว่าจะกด "บันทึก" หลัก) — เทียบ presenceEditTarget_ ด้วย
+// reference เพื่อรู้ว่าเป็นการ re-render ของ entry เดิม (เช่นตอนแก้เวลา) ไม่ใช่
+// เข้าฟอร์มใหม่ กันไม่ให้เที่ยวที่เพิ่งเพิ่มหายไปตอน re-render
+var presenceEditTravelLegs_ = [];
+var peEditTravelPlace_ = "";
+var peEditTravelDir_ = "in";
+var peEditTravelPreset_ = "single";
+
 function showPresenceEditForm_(entry) {
+  if (presenceEditTarget_ !== entry) {
+    presenceEditTravelLegs_ = (entry.travelLegs || []).slice();
+    peEditTravelPlace_ = PRESENCE_TRAVEL_PLACES[0];
+    peEditTravelDir_ = "in";
+    peEditTravelPreset_ = "single";
+  }
   presenceEditTarget_ = entry;
   setPageTitle_("แก้ไขใบลงชื่อ");
 
   var showOt = timeToMinutes_(entry.end) > 17 * 60;
   var otType = entry.otType || "normal";
+  var isLcbth = String(entry.team || "").trim().toUpperCase() === "LCBTH";
 
   document.getElementById("content").innerHTML =
     '<div class="picker-page">' +
@@ -3248,8 +3265,99 @@ function showPresenceEditForm_(entry) {
           '<label class="ot-type-option"><input type="radio" name="peOtType" value="travel" ' + (otType === "travel" ? "checked" : "") + ' onchange="updatePresenceEditField_(\'otType\', \'travel\')"> OT เดินทาง</label>' +
         '</div>' +
       '</div>' +
+      '<div id="peTravelSection">' + (isLcbth ? renderPresenceEditTravelSection_() : '') + '</div>' +
       '<button id="peSaveBtn" class="static-primary-btn" type="button" onclick="savePresenceEditEntry_()">' + checkCircleWhiteIcon() + '<span>บันทึก</span></button>' +
     '</div>';
+}
+
+// เที่ยวขาเข้าใช้เวลา "เริ่มงาน" เป็นจุดอ้างอิง ขาออกใช้ "เลิกงาน" — คำนวณ
+// เหมือนกับตอนสแกน QR เป๊ะ (buildScanTravelLegs_ ฝั่ง backend) แค่ทำฝั่ง
+// client เพื่อให้เพิ่มเที่ยวได้ทันทีไม่ต้องยิง API
+function buildEditTravelLegs_(place, preset, anchorTime, isArrival) {
+  var hours = PRESENCE_TRAVEL_HOURS[String(place || "").toUpperCase()] || 1;
+  var mins = Math.round(hours * 60);
+  var isDriver = preset === "driver";
+
+  if (isArrival) {
+    if (isDriver) {
+      var arriveBack = shiftTimeStr_(anchorTime, -mins);
+      var arriveOut = shiftTimeStr_(arriveBack, -mins);
+      return [
+        { from: "Yusen", to: place, start: arriveOut, end: arriveBack },
+        { from: place, to: "Yusen", start: arriveBack, end: anchorTime }
+      ];
+    }
+    return [{ from: place, to: "Yusen", start: shiftTimeStr_(anchorTime, -mins), end: anchorTime }];
+  }
+
+  if (isDriver) {
+    var departOut = shiftTimeStr_(anchorTime, mins);
+    var departBack = shiftTimeStr_(departOut, mins);
+    return [
+      { from: "Yusen", to: place, start: anchorTime, end: departOut },
+      { from: place, to: "Yusen", start: departOut, end: departBack }
+    ];
+  }
+  return [{ from: "Yusen", to: place, start: anchorTime, end: shiftTimeStr_(anchorTime, mins) }];
+}
+
+function presenceEditTravelLegsSummaryHtml_() {
+  if (!presenceEditTravelLegs_.length) return '';
+  var lines = presenceEditTravelLegs_.map(function(leg) {
+    return escapeHtml(leg.start + '-' + leg.end + ' ' + leg.from + '-' + leg.to);
+  });
+  return '<p class="picker-context" style="margin:0 0 1vh;font-size:1.7vh;">เที่ยวที่บันทึกไว้:<br>' + lines.join('<br>') + '</p>';
+}
+
+function renderPresenceEditTravelSection_() {
+  var placeOpts = PRESENCE_TRAVEL_PLACES.map(function(p) {
+    return '<option value="' + p + '"' + (peEditTravelPlace_ === p ? ' selected' : '') + '>' + p + '</option>';
+  }).join('');
+
+  var dirLabel = peEditTravelDir_ === 'out' ? 'เดินทางกลับ' : 'เดินทางมา';
+  var presetOpts = [
+    { value: 'single', label: dirLabel },
+    { value: 'driver', label: 'ขับรถ รับ-ส่ง' }
+  ].map(function(pr) {
+    return '<option value="' + pr.value + '"' + (peEditTravelPreset_ === pr.value ? ' selected' : '') + '>' + pr.label + '</option>';
+  }).join('');
+
+  return '<div class="edit-defect-section">' +
+    '<p class="edit-defect-label">ย้ายไซต์</p>' +
+    presenceEditTravelLegsSummaryHtml_() +
+    '<div class="travel-selects">' +
+      '<label>สถานที่<select onchange="peEditTravelPlace_ = this.value">' + placeOpts + '</select></label>' +
+      '<label>ทิศทาง<select onchange="peEditTravelDir_ = this.value; refreshPresenceEditTravelSection_();">' +
+        '<option value="in"' + (peEditTravelDir_ === 'in' ? ' selected' : '') + '>ขาเข้า</option>' +
+        '<option value="out"' + (peEditTravelDir_ === 'out' ? ' selected' : '') + '>ขาออก</option>' +
+      '</select></label>' +
+      '<label>รูปแบบ<select onchange="peEditTravelPreset_ = this.value">' + presetOpts + '</select></label>' +
+    '</div>' +
+    '<button type="button" class="travel-add-leg" onclick="addPresenceEditTravelLeg_()">+ เพิ่มเที่ยวเดินทาง</button>' +
+  '</div>';
+}
+
+function refreshPresenceEditTravelSection_() {
+  var wrap = document.getElementById("peTravelSection");
+  if (wrap) wrap.innerHTML = renderPresenceEditTravelSection_();
+}
+
+function addPresenceEditTravelLeg_() {
+  var place = peEditTravelPlace_ || PRESENCE_TRAVEL_PLACES[0];
+  var isArrival = (peEditTravelDir_ || "in") === "in";
+  var anchorRaw = isArrival
+    ? (document.getElementById("peStart").value || presenceEditTarget_.start)
+    : (document.getElementById("peEnd").value || presenceEditTarget_.end);
+  var anchorTime = padTimeStr_(anchorRaw);
+
+  if (!anchorTime) {
+    alert("กรุณาระบุเวลา" + (isArrival ? "เริ่มงาน" : "เลิกงาน") + "ก่อน");
+    return;
+  }
+
+  var newLegs = buildEditTravelLegs_(place, peEditTravelPreset_ || "single", anchorTime, isArrival);
+  presenceEditTravelLegs_ = presenceEditTravelLegs_.concat(newLegs);
+  refreshPresenceEditTravelSection_();
 }
 
 function updatePresenceEditField_(field, value) {
@@ -3285,7 +3393,8 @@ function savePresenceEditEntry_() {
       start: start,
       end: end,
       otType: presenceEditTarget_.otType || "normal",
-      isCarOwner: !!presenceEditTarget_.isCarOwner
+      isCarOwner: !!presenceEditTarget_.isCarOwner,
+      travelLegs: presenceEditTravelLegs_
     }
   }).then(function(data) {
     if (data && data.ok) {
