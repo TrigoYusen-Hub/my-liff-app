@@ -3362,8 +3362,8 @@ function handleCheckinScanResult_(rawValue) {
 // ต่างกันตามโหมดให้เข้าใจง่าย ("เดินทางเข้ามา"/"เดินทางกลับ") แต่ value เดียวกัน
 function checkinTravelPresetOptions_() {
   return checkinMode_ === "in"
-    ? [{ value: "single", label: "เดินทางเข้ามา" }, { value: "driver", label: "ขับรถรับ-ส่ง" }]
-    : [{ value: "single", label: "เดินทางกลับ" }, { value: "driver", label: "ขับรถรับ-ส่ง" }];
+    ? [{ value: "single", label: "เดินทางมา" }, { value: "driver", label: "ขับรถ รับ-ส่ง" }]
+    : [{ value: "single", label: "เดินทางกลับ" }, { value: "driver", label: "ขับรถ รับ-ส่ง" }];
 }
 
 function showCheckinConfirmView_() {
@@ -3385,7 +3385,7 @@ function showCheckinConfirmView_() {
   }).join("");
 
   var travelHtml = showTravel
-    ? '<label class="travel-toggle"><input type="checkbox" ' + (checkinTravelChecked_ ? "checked" : "") + ' onchange="toggleCheckinTravel_(this.checked)"> เดินทาง</label>' +
+    ? '<label class="travel-toggle"><input type="checkbox" ' + (checkinTravelChecked_ ? "checked" : "") + ' onchange="toggleCheckinTravel_(this.checked)"> ย้ายไซต์</label>' +
       (checkinTravelChecked_
         ? '<div class="travel-editor"><div class="travel-selects">' +
             '<label>สถานที่<select onchange="checkinTravelPlace_ = this.value">' + placeOpts + '</select></label>' +
