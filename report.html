@@ -579,6 +579,10 @@ body {
   min-height: 80vh;
 }
 
+.confirm-view.has-sticky-footer {
+  padding-bottom: 19vh;
+}
+
 .confirm-heading {
   margin: 0 0 2vh;
   text-align: center;
@@ -3304,6 +3308,7 @@ var checkinMode_ = "in";
 var checkinScanToken_ = "";
 var checkinTravelChecked_ = false;
 var checkinTravelPlace_ = "";
+var checkinTravelPreset_ = "";
 
 function cameraWhiteIcon() {
   return '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 20H27L31 15H41L45 20H50C53 20 56 23 56 26V48C56 51 53 54 50 54H14C11 54 8 51 8 48V26C8 23 11 20 14 20H18Z" fill="none" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"></path><circle cx="32" cy="37" r="11" fill="none" stroke="#ffffff" stroke-width="4"></circle><circle cx="18" cy="28" r="3" fill="#ffffff"></circle></svg>';
@@ -3314,6 +3319,7 @@ function showCheckinLanding_(mode) {
   checkinScanToken_ = "";
   checkinTravelChecked_ = false;
   checkinTravelPlace_ = "";
+  checkinTravelPreset_ = "";
 
   var title = mode === "in" ? "ลงชื่อเข้างาน" : "ลงชื่อออกงาน";
   setPageTitle_(title);
@@ -3351,38 +3357,53 @@ function handleCheckinScanResult_(rawValue) {
   goto_(showCheckinConfirmView_);
 }
 
+// preset เหลือแค่ 2 แบบ (ตัด "ไป-กลับปกติ"/"กำหนดเอง" ออก) เพราะแต่ละรอบสแกน
+// (เข้า/ออก) ถามเที่ยวเดินทางของตัวเองอิสระ ไม่ผูกกับอีกรอบ — ป้ายข้อความ
+// ต่างกันตามโหมดให้เข้าใจง่าย ("เดินทางเข้ามา"/"เดินทางกลับ") แต่ value เดียวกัน
+function checkinTravelPresetOptions_() {
+  return checkinMode_ === "in"
+    ? [{ value: "single", label: "เดินทางเข้ามา" }, { value: "driver", label: "ขับรถรับ-ส่ง" }]
+    : [{ value: "single", label: "เดินทางกลับ" }, { value: "driver", label: "ขับรถรับ-ส่ง" }];
+}
+
 function showCheckinConfirmView_() {
   var title = checkinMode_ === "in" ? "ยืนยันลงชื่อเข้างาน" : "ยืนยันลงชื่อออกงาน";
   setPageTitle_(title);
 
   var isLcbth = String(currentEmployeeSite_ || "").trim().toUpperCase() === "LCBTH";
-  var showTravel = checkinMode_ === "in" && isLcbth;
+  var showTravel = isLcbth;
 
-  if (showTravel && !checkinTravelPlace_) {
-    checkinTravelPlace_ = PRESENCE_TRAVEL_PLACES[0];
-  }
+  if (showTravel && !checkinTravelPlace_) checkinTravelPlace_ = PRESENCE_TRAVEL_PLACES[0];
+  if (showTravel && !checkinTravelPreset_) checkinTravelPreset_ = "single";
 
   var placeOpts = PRESENCE_TRAVEL_PLACES.map(function(p) {
     return '<option value="' + p + '"' + (checkinTravelPlace_ === p ? ' selected' : '') + '>' + p + '</option>';
   }).join("");
 
+  var presetOpts = checkinTravelPresetOptions_().map(function(pr) {
+    return '<option value="' + pr.value + '"' + (checkinTravelPreset_ === pr.value ? ' selected' : '') + '>' + pr.label + '</option>';
+  }).join("");
+
   var travelHtml = showTravel
-    ? '<section class="confirm-card">' +
-        '<label class="travel-toggle"><input type="checkbox" ' + (checkinTravelChecked_ ? "checked" : "") + ' onchange="toggleCheckinTravel_(this.checked)"> เดินทางมาจากที่อื่น (ระบบจะหักเวลาเดินทางออกจากเวลาเข้างาน)</label>' +
-        (checkinTravelChecked_
-          ? '<div class="travel-editor"><div class="travel-selects"><label>สถานที่<select onchange="checkinTravelPlace_ = this.value">' + placeOpts + '</select></label></div></div>'
-          : '') +
-      '</section>'
+    ? '<label class="travel-toggle"><input type="checkbox" ' + (checkinTravelChecked_ ? "checked" : "") + ' onchange="toggleCheckinTravel_(this.checked)"> เดินทาง</label>' +
+      (checkinTravelChecked_
+        ? '<div class="travel-editor"><div class="travel-selects">' +
+            '<label>สถานที่<select onchange="checkinTravelPlace_ = this.value">' + placeOpts + '</select></label>' +
+            '<label>รูปแบบ<select onchange="checkinTravelPreset_ = this.value">' + presetOpts + '</select></label>' +
+          '</div></div>'
+        : '')
     : '';
 
   document.getElementById("content").innerHTML =
-    '<div class="confirm-view">' +
+    '<div class="confirm-view has-sticky-footer">' +
       '<h2 class="confirm-heading">' + escapeHtml(title) + '</h2>' +
       '<section class="confirm-card">' +
         '<div class="info-row"><span>ชื่อ</span><span class="info-value">' + escapeHtml(currentEmployeeDisplayName) + '</span></div>' +
         '<div class="info-row"><span>ไซต์</span><span class="info-value">' + escapeHtml(currentEmployeeSite_ || "-") + '</span></div>' +
+        travelHtml +
       '</section>' +
-      travelHtml +
+    '</div>' +
+    '<div class="multi-picker-footer">' +
       '<button class="static-primary-btn" type="button" onclick="submitCheckinScan_()">' + checkCircleWhiteIcon() + '<span>ยืนยัน</span></button>' +
       '<button class="static-secondary-btn" type="button" onclick="goBack_()"><span>ยกเลิก</span></button>' +
     '</div>';
@@ -3390,7 +3411,10 @@ function showCheckinConfirmView_() {
 
 function toggleCheckinTravel_(checked) {
   checkinTravelChecked_ = checked;
-  if (checked && !checkinTravelPlace_) checkinTravelPlace_ = PRESENCE_TRAVEL_PLACES[0];
+  if (checked) {
+    if (!checkinTravelPlace_) checkinTravelPlace_ = PRESENCE_TRAVEL_PLACES[0];
+    if (!checkinTravelPreset_) checkinTravelPreset_ = "single";
+  }
   showCheckinConfirmView_();
 }
 
@@ -3401,8 +3425,9 @@ function submitCheckinScan_() {
   var action = checkinMode_ === "in" ? "scanPresenceCheckIn" : "scanPresenceCheckOut";
   var payload = { lineUserId: currentLineUserId, token: checkinScanToken_ };
 
-  if (checkinMode_ === "in" && checkinTravelChecked_) {
+  if (checkinTravelChecked_) {
     payload.travelPlace = checkinTravelPlace_;
+    payload.travelPreset = checkinTravelPreset_;
   }
 
   api(action, { payload: payload }).then(function(data) {
