@@ -1300,6 +1300,80 @@ body {
 
 .edit-defect-sum.ok { color: #1B8A3D; }
 .edit-defect-sum.bad { color: #D22; }
+
+.scan-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9997;
+  background: #000000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-overlay-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000000;
+}
+
+.scan-overlay-guide {
+  position: relative;
+  width: 64vw;
+  height: 64vw;
+  max-width: 320px;
+  max-height: 320px;
+}
+
+.scan-corner {
+  position: absolute;
+  width: 8.18vh;
+  height: 8.18vh;
+  border: 9px solid #ffffff;
+}
+
+.scan-corner.tl { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 4px 0 0 0; }
+.scan-corner.tr { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 4px 0 0; }
+.scan-corner.bl { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 4px; }
+.scan-corner.br { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 4px 0; }
+
+.scan-overlay-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 16vh;
+  margin: 0;
+  text-align: center;
+  color: #ffffff;
+  font-size: 2.3vh;
+  font-weight: 700;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+
+.scan-overlay-cancel-btn {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(3vh + env(safe-area-inset-bottom, 0px));
+  height: 7.5vh;
+  border: 2px solid #ffffff;
+  border-radius: 12px;
+  background: rgba(0,0,0,.45);
+  color: #ffffff;
+  font-family: "Kanit", "Segoe UI", sans-serif;
+  font-size: 2.8vh;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.needs-review-tag {
+  color: #C0392B;
+  font-weight: 700;
+}
 </style>
 </head>
 <body>
@@ -1368,6 +1442,7 @@ body {
   </div>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 
 <script>
 var GAS_API = "https://script.google.com/macros/s/AKfycbxeASt8OLOAIj9GIuJUGUGS6iBeELosvSfsrm0oSGN7GfOeEyb8NVD2_2z7XMralNZdlA/exec";
@@ -1376,6 +1451,7 @@ var currentLineUserId = "";
 var currentEmployeeDisplayName = "";
 var currentEmployeeName_ = "";
 var currentEmployeeType_ = "";
+var currentEmployeeSite_ = "";
 
 // Admin/Engineer แก้ไขยอดงานของคนอื่นได้ ไม่ใช่แค่ของตัวเอง
 function isElevatedEmployeeType_(type) {
@@ -1451,6 +1527,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     currentEmployeeDisplayName = initData.employee.displayName || initData.employee.name;
     currentEmployeeName_ = initData.employee.name || "";
     currentEmployeeType_ = initData.employee.type || "";
+    currentEmployeeSite_ = initData.employee.site || "";
 
     if (initData.version) {
       window.currentAppVersion = initData.version;
@@ -1528,6 +1605,23 @@ function goBack_() {
 }
 
 window.addEventListener("popstate", function() {
+  // หน้าสแกนเต็มจอ push history state เพิ่มไว้ 1 ชั้นตอนเปิด — back (ปุ่ม
+  // เครื่อง/ปุ่มยกเลิก/ปิดเองหลังสแกนสำเร็จ) ต้องปิด overlay นี้ก่อนเสมอ
+  // ไม่ใช่ไปย้อน navStack_ ข้างใต้
+  if (document.getElementById("scanOverlay_")) {
+    var scanCb_ = pendingOverlayCloseCallback_;
+    pendingOverlayCloseCallback_ = null;
+
+    if (!scanCb_) {
+      scanCancelledByUser_ = true;
+      if (codeReader_) { try { codeReader_.reset(); } catch (e) {} codeReader_ = null; }
+    }
+
+    closeFullscreenScanOverlay_();
+    if (scanCb_) scanCb_();
+    return;
+  }
+
   if (navStack_.length <= 1) {
     if (navStack_[0] === showHomeChoice_) {
       if (typeof liff !== "undefined" && liff.isInClient && liff.isInClient()) {
@@ -1563,6 +1657,85 @@ function updateBackBtnVisibility_() {
   var btn = document.getElementById("headerBackBtn");
   if (!btn) return;
   btn.classList.toggle("show", navStack_.length > 1);
+}
+
+// ---- กล้องสแกน QR แบบเต็มจอ (ย้ายมาจาก index.html) ----
+var codeReader_ = null;
+var scanCancelledByUser_ = false;
+var activeScanHandler_ = null;
+var pendingOverlayCloseCallback_ = null;
+
+function openFullscreenScanOverlay_() {
+  var overlay = document.createElement("div");
+  overlay.id = "scanOverlay_";
+  overlay.className = "scan-overlay";
+  overlay.innerHTML =
+    '<video id="scanVideoFullscreen" class="scan-overlay-video" muted playsinline></video>' +
+    '<div class="scan-overlay-guide">' +
+      '<span class="scan-corner tl"></span><span class="scan-corner tr"></span>' +
+      '<span class="scan-corner bl"></span><span class="scan-corner br"></span>' +
+    '</div>' +
+    '<p class="scan-overlay-hint">เล็งกล้องไปที่ QR Code</p>' +
+    '<button class="scan-overlay-cancel-btn" type="button" onclick="history.back()">ยกเลิก</button>';
+  document.body.appendChild(overlay);
+  history.pushState({ scanning: true }, "", "");
+}
+
+function closeFullscreenScanOverlay_() {
+  var overlay = document.getElementById("scanOverlay_");
+  if (overlay) overlay.remove();
+}
+
+function closeFullscreenScanOverlayViaBack_(callback) {
+  pendingOverlayCloseCallback_ = callback || null;
+  history.back();
+}
+
+async function startScan() {
+  scanCancelledByUser_ = false;
+  openFullscreenScanOverlay_();
+
+  try {
+    var hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.DATA_MATRIX
+    ]);
+
+    codeReader_ = new ZXing.BrowserMultiFormatReader(hints);
+
+    var result = await codeReader_.decodeOnceFromConstraints(
+      { video: { facingMode: "environment" } },
+      "scanVideoFullscreen"
+    );
+
+    codeReader_ = null;
+    var text = result.getText();
+
+    closeFullscreenScanOverlayViaBack_(function() {
+      (activeScanHandler_ || function() {})(text);
+    });
+  } catch (e) {
+    var wasCancelled = scanCancelledByUser_;
+    codeReader_ = null;
+
+    if (document.getElementById("scanOverlay_")) {
+      closeFullscreenScanOverlayViaBack_(function() {
+        if (!wasCancelled) {
+          alert("สแกนไม่สำเร็จ: " + (e && e.message ? e.message : e));
+        }
+      });
+    }
+  }
+}
+
+function stopScanCamera_() {
+  if (codeReader_) {
+    try { codeReader_.reset(); } catch (e) {}
+    codeReader_ = null;
+  }
+  pendingOverlayCloseCallback_ = null;
+  closeFullscreenScanOverlay_();
 }
 
 function showUnauthorizedView() {
@@ -1655,8 +1828,19 @@ function showHomeChoice_() {
 
   document.getElementById("content").innerHTML =
     '<div class="home-menu">' +
+      /* ปุ่ม "สร้างใบลงชื่อ" เดิม — ซ่อนไว้ระหว่างทดลองฟีเจอร์ QR ลงชื่อเข้า-ออก
+         งานด้วยตัวเอง (ไม่ลบโค้ดข้างล่างทิ้ง เผื่อทดลองไม่สำเร็จจะเปิดกลับมา
+         ใช้ได้ทันที)
       '<button type="button" class="home-menu-card" onclick="goFromHome_(showPresenceDatePicker_)">' +
         '<span class="home-menu-card-title">สร้างใบลงชื่อ</span>' +
+        chevronIcon() +
+      '</button>' + */
+      '<button type="button" class="home-menu-card" onclick="goFromHome_(function() { showCheckinLanding_(\'in\'); })">' +
+        '<span class="home-menu-card-title">ลงชื่อเข้างาน</span>' +
+        chevronIcon() +
+      '</button>' +
+      '<button type="button" class="home-menu-card" onclick="goFromHome_(function() { showCheckinLanding_(\'out\'); })">' +
+        '<span class="home-menu-card-title">ลงชื่อออกงาน</span>' +
         chevronIcon() +
       '</button>' +
       '<button type="button" class="home-menu-card" onclick="goFromHome_(showInspectDatePicker_)">' +
@@ -1664,7 +1848,7 @@ function showHomeChoice_() {
         chevronIcon() +
       '</button>' +
       '<button type="button" class="home-menu-card" onclick="goFromHome_(showPresenceEditDatePicker_)">' +
-        '<span class="home-menu-card-title">ตรวจสอบ/แก้ไขใบลงชื่อ</span>' +
+        '<span class="home-menu-card-title">ตรวจสอบใบลงชื่อ</span>' +
         chevronIcon() +
       '</button>' +
     '</div>' +
@@ -2761,7 +2945,7 @@ function showPresenceEditDatePicker_() {
 }
 
 async function showPresenceEditListView_() {
-  setPageTitle_("แก้ไขใบลงชื่อ");
+  setPageTitle_("ตรวจสอบใบลงชื่อ");
   document.getElementById("content").innerHTML = '<div class="picker-page"><p class="picker-context">กำลังโหลด...</p></div>';
 
   var res = await api("getPresenceEntries", { dateStr: presenceEditState_.dateStr }).catch(function() { return { ok: false }; });
@@ -2774,11 +2958,14 @@ async function showPresenceEditListView_() {
 }
 
 function renderPresenceEditList_(fileUrl) {
+  var canEdit = isElevatedEmployeeType_(currentEmployeeType_);
+
   var rowsHtml = presenceEditState_.entries.map(function(e, idx) {
+    var reviewTag = e.needsReview ? ' &middot; <span class="needs-review-tag">ต้องตรวจสอบ</span>' : '';
     return '<button type="button" class="picker-item" data-idx="' + idx + '">' +
       '<span class="picker-item-text">' +
         '<span class="picker-item-title">' + escapeHtml(e.employeeName) + '</span>' +
-        '<span class="picker-item-sub">' + escapeHtml(e.start) + ' - ' + escapeHtml(e.end) + '</span>' +
+        '<span class="picker-item-sub">' + escapeHtml(e.start) + ' - ' + escapeHtml(e.end) + reviewTag + '</span>' +
       '</span>' +
       chevronIcon() +
     '</button>';
@@ -2786,6 +2973,10 @@ function renderPresenceEditList_(fileUrl) {
 
   var emptyHtml = presenceEditState_.entries.length === 0
     ? '<div class="dash-empty-text">ยังไม่มีใครลงชื่อในวันนี้</div>'
+    : '';
+
+  var addBtnHtml = canEdit
+    ? '<button type="button" class="add-employee-btn" onclick="goto_(showPresenceEditAddEmployeeView_)">+ เพิ่มพนักงาน</button>'
     : '';
 
   var fileLinkHtml = fileUrl
@@ -2798,16 +2989,41 @@ function renderPresenceEditList_(fileUrl) {
       '<h2 class="picker-heading">รายชื่อที่ลงไว้</h2>' +
       emptyHtml +
       '<div class="picker-list">' + rowsHtml + '</div>' +
-      '<button type="button" class="add-employee-btn" onclick="goto_(showPresenceEditAddEmployeeView_)">+ เพิ่มพนักงาน</button>' +
+      addBtnHtml +
       fileLinkHtml +
     '</div>';
 
   document.querySelectorAll(".picker-item").forEach(function(btn) {
     btn.addEventListener("click", function() {
       var idx = Number(btn.getAttribute("data-idx"));
-      goto_(function() { showPresenceEditForm_(presenceEditState_.entries[idx]); });
+      var entry = presenceEditState_.entries[idx];
+      if (canEdit) {
+        goto_(function() { showPresenceEditForm_(entry); });
+      } else {
+        goto_(function() { showPresenceViewOnly_(entry); });
+      }
     });
   });
+}
+
+// พนักงานทั่วไปดูได้อย่างเดียว (ไม่มีปุ่มแก้ไข) — แก้ไขได้เฉพาะ Admin/Engineer
+// ผ่าน showPresenceEditForm_ เท่านั้น
+function showPresenceViewOnly_(entry) {
+  setPageTitle_("ตรวจสอบใบลงชื่อ");
+
+  document.getElementById("content").innerHTML =
+    '<div class="confirm-view">' +
+      '<h2 class="confirm-heading">รายละเอียด</h2>' +
+      '<section class="confirm-card">' +
+        '<div class="info-row"><span>วันที่</span><span class="info-value">' + escapeHtml(presenceEditState_.dateLabel) + '</span></div>' +
+        '<div class="info-row"><span>พนักงาน</span><span class="info-value">' + escapeHtml(entry.employeeName) + '</span></div>' +
+        '<div class="info-row"><span>เริ่มงาน</span><span class="info-value">' + escapeHtml(entry.start || "-") + '</span></div>' +
+        '<div class="info-row"><span>เลิกงาน</span><span class="info-value">' + escapeHtml(entry.end || "-") + '</span></div>' +
+        '<div class="info-row"><span>ชั่วโมงทำงาน</span><span class="info-value">' + escapeHtml(entry.workingHours || "-") + '</span></div>' +
+        (entry.needsReview ? '<div class="info-row"><span>สถานะ</span><span class="info-value needs-review-tag">ต้องตรวจสอบ</span></div>' : '') +
+      '</section>' +
+      '<button class="static-secondary-btn" type="button" onclick="goBack_()"><span>ย้อนกลับ</span></button>' +
+    '</div>';
 }
 
 async function showPresenceEditAddEmployeeView_() {
@@ -2922,6 +3138,145 @@ function savePresenceEditEntry_() {
     if (btn) btn.disabled = false;
     alert(err.message || err);
   });
+}
+
+// ---- QR ลงชื่อเข้า-ออกงาน (self-service): สแกน QR จากหน้าจอ Print Station ->
+// ยืนยัน (ติ๊กเดินทางได้เฉพาะ Site LCBTH ตอนเข้างาน) -> บันทึก ----
+
+var checkinMode_ = "in";
+var checkinScanToken_ = "";
+var checkinTravelChecked_ = false;
+var checkinTravelPlace_ = "";
+
+function cameraWhiteIcon() {
+  return '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 20H27L31 15H41L45 20H50C53 20 56 23 56 26V48C56 51 53 54 50 54H14C11 54 8 51 8 48V26C8 23 11 20 14 20H18Z" fill="none" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"></path><circle cx="32" cy="37" r="11" fill="none" stroke="#ffffff" stroke-width="4"></circle><circle cx="18" cy="28" r="3" fill="#ffffff"></circle></svg>';
+}
+
+function showCheckinLanding_(mode) {
+  checkinMode_ = mode;
+  checkinScanToken_ = "";
+  checkinTravelChecked_ = false;
+  checkinTravelPlace_ = "";
+
+  var title = mode === "in" ? "ลงชื่อเข้างาน" : "ลงชื่อออกงาน";
+  setPageTitle_(title);
+
+  document.getElementById("content").innerHTML =
+    '<div class="picker-page">' +
+      '<h2 class="picker-heading">สแกน QR เพื่อ' + escapeHtml(title) + '</h2>' +
+      '<p class="picker-context">สแกน QR ที่หน้าจอ Print Station (แท็บ "เช็คใบลงชื่อ")</p>' +
+      '<button class="static-primary-btn" type="button" onclick="startCheckinScan_()">' + cameraWhiteIcon() + '<span>เริ่มสแกน</span></button>' +
+      '<button class="static-secondary-btn" type="button" onclick="goBack_()"><span>ย้อนกลับ</span></button>' +
+    '</div>';
+}
+
+function startCheckinScan_() {
+  stopScanCamera_();
+  activeScanHandler_ = handleCheckinScanResult_;
+  startScan();
+}
+
+function parseCheckinQrToken_(raw) {
+  var s = String(raw || "");
+  if (s.indexOf("CHECKIN:") !== 0) return "";
+  return s.slice(8);
+}
+
+function handleCheckinScanResult_(rawValue) {
+  var token = parseCheckinQrToken_(rawValue);
+
+  if (!token) {
+    alert("QR ไม่ถูกต้อง กรุณาสแกน QR จากหน้าจอ Print Station");
+    return;
+  }
+
+  checkinScanToken_ = token;
+  goto_(showCheckinConfirmView_);
+}
+
+function showCheckinConfirmView_() {
+  var title = checkinMode_ === "in" ? "ยืนยันลงชื่อเข้างาน" : "ยืนยันลงชื่อออกงาน";
+  setPageTitle_(title);
+
+  var isLcbth = String(currentEmployeeSite_ || "").trim().toUpperCase() === "LCBTH";
+  var showTravel = checkinMode_ === "in" && isLcbth;
+
+  if (showTravel && !checkinTravelPlace_) {
+    checkinTravelPlace_ = PRESENCE_TRAVEL_PLACES[0];
+  }
+
+  var placeOpts = PRESENCE_TRAVEL_PLACES.map(function(p) {
+    return '<option value="' + p + '"' + (checkinTravelPlace_ === p ? ' selected' : '') + '>' + p + '</option>';
+  }).join("");
+
+  var travelHtml = showTravel
+    ? '<section class="confirm-card">' +
+        '<label class="travel-toggle"><input type="checkbox" ' + (checkinTravelChecked_ ? "checked" : "") + ' onchange="toggleCheckinTravel_(this.checked)"> เดินทางมาจากที่อื่น (ระบบจะหักเวลาเดินทางออกจากเวลาเข้างาน)</label>' +
+        (checkinTravelChecked_
+          ? '<div class="travel-editor"><div class="travel-selects"><label>สถานที่<select onchange="checkinTravelPlace_ = this.value">' + placeOpts + '</select></label></div></div>'
+          : '') +
+      '</section>'
+    : '';
+
+  document.getElementById("content").innerHTML =
+    '<div class="confirm-view">' +
+      '<h2 class="confirm-heading">' + escapeHtml(title) + '</h2>' +
+      '<section class="confirm-card">' +
+        '<div class="info-row"><span>ชื่อ</span><span class="info-value">' + escapeHtml(currentEmployeeDisplayName) + '</span></div>' +
+        '<div class="info-row"><span>ไซต์</span><span class="info-value">' + escapeHtml(currentEmployeeSite_ || "-") + '</span></div>' +
+      '</section>' +
+      travelHtml +
+      '<button class="static-primary-btn" type="button" onclick="submitCheckinScan_()">' + checkCircleWhiteIcon() + '<span>ยืนยัน</span></button>' +
+      '<button class="static-secondary-btn" type="button" onclick="goBack_()"><span>ยกเลิก</span></button>' +
+    '</div>';
+}
+
+function toggleCheckinTravel_(checked) {
+  checkinTravelChecked_ = checked;
+  if (checked && !checkinTravelPlace_) checkinTravelPlace_ = PRESENCE_TRAVEL_PLACES[0];
+  showCheckinConfirmView_();
+}
+
+function submitCheckinScan_() {
+  var btn = document.querySelector(".static-primary-btn");
+  if (btn) btn.disabled = true;
+
+  var action = checkinMode_ === "in" ? "scanPresenceCheckIn" : "scanPresenceCheckOut";
+  var payload = { lineUserId: currentLineUserId, token: checkinScanToken_ };
+
+  if (checkinMode_ === "in" && checkinTravelChecked_) {
+    payload.travelPlace = checkinTravelPlace_;
+  }
+
+  api(action, { payload: payload }).then(function(data) {
+    if (data && data.ok) {
+      resetNav_(function() { showCheckinSuccessView_(data); });
+      return;
+    }
+    if (btn) btn.disabled = false;
+    alert((data && data.error) || "บันทึกไม่สำเร็จ");
+  }).catch(function(err) {
+    if (btn) btn.disabled = false;
+    alert(err.message || err);
+  });
+}
+
+function showCheckinSuccessView_(data) {
+  var title = checkinMode_ === "in" ? "ลงชื่อเข้างานสำเร็จ" : "ลงชื่อออกงานสำเร็จ";
+  var timeLabel = checkinMode_ === "in" ? "เวลาเข้างาน" : "เวลาออกงาน";
+
+  document.getElementById("content").innerHTML =
+    '<div class="confirm-view">' +
+      '<h2 class="confirm-heading-success">' + checkCircleIcon() + '<span>' + escapeHtml(title) + '</span></h2>' +
+      '<section class="confirm-card">' +
+        '<div class="info-row"><span>ชื่อ</span><span class="info-value">' + escapeHtml(data.name || "") + '</span></div>' +
+        '<div class="info-row"><span>' + timeLabel + '</span><span class="info-value">' + escapeHtml(data.time || "") + '</span></div>' +
+      '</section>' +
+      (data.needsReview
+        ? '<p class="picker-context needs-review-tag" style="text-align:center;">เวลานี้อยู่นอกช่วงปกติ ระบบบันทึกไว้แล้ว รอ Admin ตรวจสอบ</p>'
+        : '') +
+      '<button class="static-secondary-btn" type="button" onclick="resetNav_(showHomeChoice_)"><span>กลับหน้าแรก</span></button>' +
+    '</div>';
 }
 </script>
 </body>

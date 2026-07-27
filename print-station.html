@@ -344,6 +344,17 @@
           <span class="presence-count" id="presenceCount"></span>
         </div>
 
+        <div class="card" id="checkinQrCard" style="flex:0 0 auto; flex-direction:row; align-items:center; gap:20px;">
+          <div style="flex:1;">
+            <div class="card-title" style="margin-bottom:4px;">QR ลงชื่อเข้า-ออกงาน (วันนี้)</div>
+            <div style="font-size:12.5px; color:var(--gray);">พนักงานสแกนผ่านแอป Trigo Yusen Hub (Report) เพื่อลงชื่อเข้า-ออกงานด้วยตัวเอง</div>
+          </div>
+          <div style="flex:0 0 auto; text-align:center;">
+            <button class="btn-start" id="checkinQrGenBtn" onclick="generateCheckinQr_()" style="padding:12px 20px;">สร้าง QR</button>
+            <canvas id="checkinQrCanvas" style="display:none;"></canvas>
+          </div>
+        </div>
+
         <div class="card">
           <div class="table-wrap">
             <table class="history-table">
@@ -637,7 +648,58 @@ function showView_(view) {
   document.getElementById("presenceView").style.display = view === "presence" ? "flex" : "none";
   document.getElementById("navPrintBtn").classList.toggle("active", view === "print");
   document.getElementById("navPresenceBtn").classList.toggle("active", view === "presence");
-  if (view === "presence") loadPresenceEntries_();
+  if (view === "presence") {
+    loadPresenceEntries_();
+    loadCheckinQrStatus_();
+  }
+}
+
+// ---- QR ลงชื่อเข้า-ออกงาน: วันหนึ่งมี QR เดียว สร้างครั้งเดียวพอ พอขึ้นวันใหม่
+// token เก่าหมดอายุเอง (เช็คที่ backend) ต้องกดสร้างใหม่ ----
+function loadCheckinQrStatus_() {
+  api_("getCheckinQrStatus", {})
+    .then(function(res) {
+      if (res && res.ok && res.token) {
+        renderCheckinQr_(res.token);
+      } else {
+        showCheckinQrGenButton_();
+      }
+    })
+    .catch(function() {
+      showCheckinQrGenButton_();
+    });
+}
+
+function showCheckinQrGenButton_() {
+  document.getElementById("checkinQrGenBtn").style.display = "inline-block";
+  document.getElementById("checkinQrCanvas").style.display = "none";
+}
+
+function renderCheckinQr_(token) {
+  document.getElementById("checkinQrGenBtn").style.display = "none";
+  var canvas = document.getElementById("checkinQrCanvas");
+  canvas.style.display = "inline-block";
+  QRCode.toCanvas(canvas, "CHECKIN:" + token, { margin: 1, width: 160 }, function(err) {
+    if (err) console.error(err);
+  });
+}
+
+function generateCheckinQr_() {
+  var btn = document.getElementById("checkinQrGenBtn");
+  btn.disabled = true;
+  api_("generateCheckinQr", {})
+    .then(function(res) {
+      btn.disabled = false;
+      if (res && res.ok && res.token) {
+        renderCheckinQr_(res.token);
+      } else {
+        alert("สร้าง QR ไม่สำเร็จ: " + ((res && res.error) || "unknown error"));
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      alert("สร้าง QR ไม่สำเร็จ: " + String(err && err.message ? err.message : err));
+    });
 }
 
 function onPresenceDateChange_() {
