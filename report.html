@@ -3265,6 +3265,7 @@ function showPresenceEditForm_(entry) {
           '<label class="ot-type-option"><input type="radio" name="peOtType" value="travel" ' + (otType === "travel" ? "checked" : "") + ' onchange="updatePresenceEditField_(\'otType\', \'travel\')"> OT เดินทาง</label>' +
         '</div>' +
       '</div>' +
+      (!isLcbth ? '<label class="car-owner-option"><input type="checkbox" ' + (entry.isCarOwner ? "checked" : "") + ' onchange="updatePresenceEditField_(\'isCarOwner\', this.checked)"> เจ้าของรถ</label>' : '') +
       '<div id="peTravelSection">' + (isLcbth ? renderPresenceEditTravelSection_() : '') + '</div>' +
       '<button id="peSaveBtn" class="static-primary-btn" type="button" onclick="savePresenceEditEntry_()">' + checkCircleWhiteIcon() + '<span>บันทึก</span></button>' +
     '</div>';
