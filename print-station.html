@@ -49,6 +49,14 @@
   .sidebar-icon { margin: 26px 0; display: flex; justify-content: center; }
   .sidebar-icon img { width: 110px; height: auto; display: block; }
 
+  .sidebar-nav { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .nav-btn {
+    background: rgba(255,255,255,0.06); color: #cbd5e1; border: none;
+    padding: 11px 14px; border-radius: 8px; font-size: 13.5px; font-weight: bold;
+    text-align: left; cursor: pointer; width: 100%;
+  }
+  .nav-btn.active { background: rgba(255,255,255,0.16); color: #fff; }
+
   .status-row {
     display: flex;
     align-items: center;
@@ -111,6 +119,25 @@
   }
 
   .page-heading { flex: 0 0 auto; margin: 0 0 18px; font-size: 22px; font-weight: bold; color: var(--navy); }
+
+  .view-panel { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+
+  .presence-toolbar { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .presence-toolbar input[type="date"] {
+    height: 38px; border-radius: 8px; border: 1px solid #d7dce2; padding: 0 12px;
+    font-size: 13.5px; font-family: inherit; color: #222;
+  }
+  .presence-toolbar input[type="text"] {
+    height: 38px; border-radius: 8px; border: 1px solid #d7dce2; padding: 0 12px;
+    font-size: 13.5px; font-family: inherit; flex: 1 1 200px; max-width: 280px;
+  }
+  .presence-count { font-size: 12.5px; color: var(--gray); margin-left: auto; }
+
+  .site-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: bold; white-space: nowrap; }
+  .site-blue { background: #E6F1FB; color: #0C447C; }
+  .site-green { background: #EAF3DE; color: #27500A; }
+  .site-coral { background: #FAECE7; color: #712B13; }
+  .site-purple { background: #EEEDFE; color: #26215C; }
 
   .stat-cards { flex: 0 0 auto; display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
   .stat-card {
@@ -246,6 +273,11 @@
       <img src="print-station-printer.png" alt="Zebra label printer">
     </div>
 
+    <div class="sidebar-nav">
+      <button class="nav-btn active" id="navPrintBtn" onclick="showView_('print')">คิวพิมพ์</button>
+      <button class="nav-btn" id="navPresenceBtn" onclick="showView_('presence')">เช็คใบลงชื่อ</button>
+    </div>
+
     <div class="status-row">
       <span class="dot" id="statusDot"></span>
       <span id="statusText">ยังไม่ได้เริ่ม</span>
@@ -270,42 +302,67 @@
     </header>
 
     <main>
-      <h2 class="page-heading">รอคิวพิมพ์....</h2>
+      <div id="printQueueView" class="view-panel">
+        <h2 class="page-heading">รอคิวพิมพ์....</h2>
 
-      <div class="stat-cards">
-        <div class="stat-card stat-amber">
-          <div class="stat-label">กำลังรอคิว</div>
-          <div class="stat-value" id="statQueued">0</div>
+        <div class="stat-cards">
+          <div class="stat-card stat-amber">
+            <div class="stat-label">กำลังรอคิว</div>
+            <div class="stat-value" id="statQueued">0</div>
+          </div>
+          <div class="stat-card stat-green">
+            <div class="stat-label">พิมพ์แล้ว (วันนี้)</div>
+            <div class="stat-value" id="statPrinted">0</div>
+          </div>
+          <div class="stat-card stat-red">
+            <div class="stat-label">ล้มเหลว</div>
+            <div class="stat-value" id="statFailed">0</div>
+          </div>
         </div>
-        <div class="stat-card stat-green">
-          <div class="stat-label">พิมพ์แล้ว (วันนี้)</div>
-          <div class="stat-value" id="statPrinted">0</div>
+
+        <div class="card">
+          <div class="card-title">ประวัติการพิมพ์</div>
+          <div class="table-wrap">
+            <table class="history-table">
+              <thead>
+                <tr><th>#</th><th>Mission</th><th>ส่งงานโดย</th><th>สถานะ</th><th>เวลา</th></tr>
+              </thead>
+              <tbody id="log">
+                <tr class="empty-row"><td colspan="5">ยังไม่มีงานพิมพ์</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div class="stat-card stat-red">
-          <div class="stat-label">ล้มเหลว</div>
-          <div class="stat-value" id="statFailed">0</div>
+
+        <div class="info-box">
+          <strong>วิธีใช้งาน:</strong> กดเริ่มทำงานค้างไว้ตลอดกะ ระบบจะดึงงานพิมพ์จากแอป Trigo Yusen Hub มาพิมพ์ให้อัตโนมัติ<br>
+          ต้องตั้งเครื่องพิมพ์ Zebra ZD888TA เป็นเครื่องพิมพ์เริ่มต้น (Default Printer) ของ Windows ก่อน แนะนำเปิด Chrome ด้วยแฟล็ก <code>--kiosk-printing</code>
+          เพื่อให้พิมพ์อัตโนมัติโดยไม่ต้องกดยืนยันทีละใบ (คลิกขวาช็อตคัต Chrome → Properties → ต่อท้าย Target ด้วย <code>--kiosk-printing</code>)<br>
+          <strong>ขนาดสติกเกอร์:</strong> 32x20mm พิมพ์ทีละ 1 ใบ/แถว
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">ประวัติการพิมพ์</div>
-        <div class="table-wrap">
-          <table class="history-table">
-            <thead>
-              <tr><th>#</th><th>Mission</th><th>ส่งงานโดย</th><th>สถานะ</th><th>เวลา</th></tr>
-            </thead>
-            <tbody id="log">
-              <tr class="empty-row"><td colspan="5">ยังไม่มีงานพิมพ์</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <div id="presenceView" class="view-panel" style="display:none">
+        <h2 class="page-heading">เช็คใบลงชื่อ</h2>
 
-      <div class="info-box">
-        <strong>วิธีใช้งาน:</strong> กดเริ่มทำงานค้างไว้ตลอดกะ ระบบจะดึงงานพิมพ์จากแอป Trigo Yusen Hub มาพิมพ์ให้อัตโนมัติ<br>
-        ต้องตั้งเครื่องพิมพ์ Zebra ZD888TA เป็นเครื่องพิมพ์เริ่มต้น (Default Printer) ของ Windows ก่อน แนะนำเปิด Chrome ด้วยแฟล็ก <code>--kiosk-printing</code>
-        เพื่อให้พิมพ์อัตโนมัติโดยไม่ต้องกดยืนยันทีละใบ (คลิกขวาช็อตคัต Chrome → Properties → ต่อท้าย Target ด้วย <code>--kiosk-printing</code>)<br>
-        <strong>ขนาดสติกเกอร์:</strong> 32x20mm พิมพ์ทีละ 1 ใบ/แถว
+        <div class="presence-toolbar">
+          <input type="date" id="presenceDateInput" onchange="onPresenceDateChange_()">
+          <input type="text" id="presenceSearchInput" placeholder="ค้นหาชื่อ หรือ รหัส..." oninput="renderPresenceTable_()">
+          <span class="presence-count" id="presenceCount"></span>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table class="history-table">
+              <thead>
+                <tr><th>ชื่อ</th><th>รหัส</th><th>เริ่ม</th><th>จบ</th><th>ชั่วโมงทำงาน</th><th>ไซต์</th></tr>
+              </thead>
+              <tbody id="presenceRows">
+                <tr class="empty-row"><td colspan="6">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -552,6 +609,98 @@ function tickClock_() {
 }
 tickClock_();
 setInterval(tickClock_, 1000);
+
+// ---- เช็คใบลงชื่อ: ดึงรายชื่อ+เวลาเข้า-ออกของวันที่เลือกมาโชว์แบบ read-only
+// (ใช้ endpoint เดียวกับที่หน้าแก้ไขใบลงชื่อใน Report ใช้อยู่แล้ว) ----
+var presenceEntries_ = [];
+
+function pad2_(n) { return n < 10 ? "0" + n : String(n); }
+
+// <input type="date"> คืนค่าแบบ YYYY-MM-DD เสมอ แต่ backend เก็บ/เทียบวันที่
+// แบบ DD/MM/YYYY (ตามที่ report.html ใช้เรียก getPresenceEntries) ต้องแปลงก่อน
+function toApiDateStr_(isoDateStr) {
+  var parts = String(isoDateStr || "").split("-");
+  if (parts.length !== 3) return "";
+  return parts[2] + "/" + parts[1] + "/" + parts[0];
+}
+
+function todayInputValue_() {
+  var d = new Date();
+  return d.getFullYear() + "-" + pad2_(d.getMonth() + 1) + "-" + pad2_(d.getDate());
+}
+
+var SITE_PILL_CLASS_ = {
+  LCBTH: "site-blue",
+  RAYONG: "site-green",
+  AMATA: "site-green",
+  BENZ: "site-coral",
+  NISSAN: "site-coral",
+  WELGROW: "site-coral",
+  BANGNA: "site-coral"
+};
+
+function sitePillClass_(team) {
+  return SITE_PILL_CLASS_[String(team || "").toUpperCase()] || "site-purple";
+}
+
+function showView_(view) {
+  document.getElementById("printQueueView").style.display = view === "print" ? "flex" : "none";
+  document.getElementById("presenceView").style.display = view === "presence" ? "flex" : "none";
+  document.getElementById("navPrintBtn").classList.toggle("active", view === "print");
+  document.getElementById("navPresenceBtn").classList.toggle("active", view === "presence");
+  if (view === "presence") loadPresenceEntries_();
+}
+
+function onPresenceDateChange_() {
+  loadPresenceEntries_();
+}
+
+function loadPresenceEntries_() {
+  var dateStr = toApiDateStr_(document.getElementById("presenceDateInput").value);
+  document.getElementById("presenceRows").innerHTML = '<tr class="empty-row"><td colspan="6">กำลังโหลด...</td></tr>';
+
+  api_("getPresenceEntries", { dateStr: dateStr })
+    .then(function(res) {
+      presenceEntries_ = (res && res.ok && res.entries) || [];
+      renderPresenceTable_();
+    })
+    .catch(function() {
+      presenceEntries_ = [];
+      document.getElementById("presenceRows").innerHTML = '<tr class="empty-row"><td colspan="6">โหลดข้อมูลไม่สำเร็จ</td></tr>';
+      document.getElementById("presenceCount").textContent = "";
+    });
+}
+
+function renderPresenceTable_() {
+  var q = String(document.getElementById("presenceSearchInput").value || "").trim().toLowerCase();
+  var filtered = q ? presenceEntries_.filter(function(e) {
+    return String(e.employeeName || "").toLowerCase().indexOf(q) !== -1 ||
+           String(e.pass || "").toLowerCase().indexOf(q) !== -1;
+  }) : presenceEntries_;
+
+  document.getElementById("presenceCount").textContent = "ทั้งหมด " + filtered.length + " คน";
+
+  var tbody = document.getElementById("presenceRows");
+
+  if (filtered.length === 0) {
+    var emptyMsg = presenceEntries_.length === 0 ? "ยังไม่มีใครลงชื่อวันที่นี้" : "ไม่พบรายการที่ค้นหา";
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">' + emptyMsg + '</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(e) {
+    return "<tr>" +
+      '<td style="font-weight:bold;">' + escapeHtml_(e.employeeName) + "</td>" +
+      "<td>" + escapeHtml_(e.pass || "") + "</td>" +
+      "<td>" + escapeHtml_(e.start || "") + "</td>" +
+      "<td>" + escapeHtml_(e.end || "") + "</td>" +
+      '<td style="font-weight:bold;">' + escapeHtml_(e.workingHours || "") + "</td>" +
+      "<td>" + '<span class="site-pill ' + sitePillClass_(e.team) + '">' + escapeHtml_(e.team || "") + "</span>" + "</td>" +
+    "</tr>";
+  }).join("");
+}
+
+document.getElementById("presenceDateInput").value = todayInputValue_();
 </script>
 
 </body>
