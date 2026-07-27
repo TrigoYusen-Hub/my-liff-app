@@ -21,6 +21,8 @@ button {
 .save-btn:active,
 .static-primary-btn:active,
 .static-secondary-btn:active,
+.static-approve-btn:active,
+.static-edit-btn:active,
 .picker-item:active,
 .emp-row-check:active {
   transform: scale(0.97);
@@ -1373,6 +1375,101 @@ body {
 .needs-review-tag {
   color: #C0392B;
   font-weight: 700;
+}
+
+.review-banner {
+  width: 340px;
+  max-width: calc(100% - 32px);
+  margin: 0 auto 2vh;
+  background: #FFF4E3;
+  border: 1.5px solid #F0B84B;
+  border-radius: 14px;
+  padding: 1.6vh 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-banner svg {
+  width: 3.4vh;
+  height: 3.4vh;
+  flex: 0 0 auto;
+}
+
+.review-banner-text {
+  font-size: 1.9vh;
+  font-weight: 700;
+  color: #8A5A00;
+  line-height: 1.4;
+}
+
+.static-approve-btn {
+  width: 319px;
+  max-width: calc(100% - 32px);
+  height: 8.41vh;
+  margin: 0 auto 1.5vh;
+  border: 0;
+  border-radius: 9px;
+  background: #1B8A3D;
+  color: #ffffff;
+  font-family: "Kanit", "Segoe UI", sans-serif;
+  font-size: 3.05vh;
+  line-height: 1;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.static-approve-btn svg {
+  width: 3.6vh;
+  height: 3.6vh;
+  flex: 0 0 auto;
+}
+
+.static-edit-btn {
+  width: 319px;
+  max-width: calc(100% - 32px);
+  height: 8.41vh;
+  margin: 0 auto 1.5vh;
+  border: 2px solid #0E4F8C;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #0E4F8C;
+  font-family: "Kanit", "Segoe UI", sans-serif;
+  font-size: 3.05vh;
+  line-height: 1;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.static-edit-btn svg {
+  width: 3.6vh;
+  height: 3.6vh;
+  flex: 0 0 auto;
+}
+
+.static-tertiary-btn {
+  width: 319px;
+  max-width: calc(100% - 32px);
+  height: 6.5vh;
+  margin: 0 auto;
+  border: none;
+  background: none;
+  color: #777777;
+  font-family: "Kanit", "Segoe UI", sans-serif;
+  font-size: 2.4vh;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 </style>
 </head>
@@ -2997,12 +3094,72 @@ function renderPresenceEditList_(fileUrl) {
     btn.addEventListener("click", function() {
       var idx = Number(btn.getAttribute("data-idx"));
       var entry = presenceEditState_.entries[idx];
-      if (canEdit) {
-        goto_(function() { showPresenceEditForm_(entry); });
-      } else {
+      if (!canEdit) {
         goto_(function() { showPresenceViewOnly_(entry); });
+      } else if (entry.needsReview) {
+        goto_(function() { showPresenceReviewView_(entry); });
+      } else {
+        goto_(function() { showPresenceEditForm_(entry); });
       }
     });
+  });
+}
+
+function warningTriangleIcon() {
+  return '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6L60 54H4Z" fill="#F0B84B"></path><rect x="29" y="24" width="6" height="16" rx="3" fill="#8A5A00"></rect><rect x="29" y="43" width="6" height="6" rx="3" fill="#8A5A00"></rect></svg>';
+}
+
+// รายการที่ถูกตั้งธง "ต้องตรวจสอบ" (สแกน QR แล้วเวลานอกช่วงปกติ) — ให้
+// Admin/Engineer เลือกได้ว่าจะ "อนุมัติเวลานี้" (เก็บตามที่บันทึกไว้) หรือ
+// "แก้ไขเวลา" (ไปหน้าฟอร์มแก้ไขเดิม) แทนที่จะพาเข้าฟอร์มแก้ไขตรงๆ เหมือนแถว
+// ปกติ เพื่อให้เห็นชัดว่ารายการนี้ต้องตัดสินใจอะไรก่อน
+var presenceReviewTarget_ = null;
+
+function showPresenceReviewView_(entry) {
+  presenceReviewTarget_ = entry;
+  setPageTitle_("ตรวจสอบเวลา");
+
+  document.getElementById("content").innerHTML =
+    '<div class="confirm-view">' +
+      '<h2 class="confirm-heading">ตรวจสอบเวลาลงชื่อ</h2>' +
+      '<div class="review-banner">' + warningTriangleIcon() + '<span class="review-banner-text">เวลานี้อยู่นอกช่วงปกติ กรุณาตรวจสอบ</span></div>' +
+      '<section class="confirm-card">' +
+        '<div class="info-row"><span>พนักงาน</span><span class="info-value">' + escapeHtml(entry.employeeName) + '</span></div>' +
+        '<div class="info-row"><span>วันที่</span><span class="info-value">' + escapeHtml(presenceEditState_.dateLabel) + '</span></div>' +
+        '<div class="info-row"><span>เริ่มงาน</span><span class="info-value">' + escapeHtml(entry.start || "-") + '</span></div>' +
+        '<div class="info-row"><span>เลิกงาน</span><span class="info-value">' + escapeHtml(entry.end || "-") + '</span></div>' +
+        '<div class="info-row"><span>ชั่วโมงทำงาน</span><span class="info-value">' + escapeHtml(entry.workingHours || "-") + '</span></div>' +
+      '</section>' +
+      '<button id="reviewApproveBtn" class="static-approve-btn" type="button" onclick="approvePresenceReviewEntry_()">' + checkCircleWhiteIcon() + '<span>อนุมัติเวลานี้</span></button>' +
+      '<button class="static-edit-btn" type="button" onclick="goto_(function() { showPresenceEditForm_(presenceReviewTarget_); })">' + editIcon() + '<span>แก้ไขเวลา</span></button>' +
+      '<button class="static-tertiary-btn" type="button" onclick="goBack_()"><span>ย้อนกลับ</span></button>' +
+    '</div>';
+}
+
+function approvePresenceReviewEntry_() {
+  var btn = document.getElementById("reviewApproveBtn");
+  if (btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+  }
+
+  api("approvePresenceEntry", {
+    payload: {
+      lineUserId: currentLineUserId,
+      dateStr: presenceEditState_.dateStr,
+      employeeId: presenceReviewTarget_.employeeId
+    }
+  }).then(function(data) {
+    if (data && data.ok) {
+      alert("อนุมัติเรียบร้อย");
+      goto_(showPresenceEditListView_);
+      return;
+    }
+    if (btn) btn.disabled = false;
+    alert((data && data.error) || "อนุมัติไม่สำเร็จ");
+  }).catch(function(err) {
+    if (btn) btn.disabled = false;
+    alert(err.message || err);
   });
 }
 
