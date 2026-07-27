@@ -3294,35 +3294,29 @@ function showPresenceEditForm_(entry) {
     '</div>';
 }
 
-// เที่ยวขาเข้าใช้เวลา "เริ่มงาน" เป็นจุดอ้างอิง ขาออกใช้ "เลิกงาน" — คำนวณ
-// เหมือนกับตอนสแกน QR เป๊ะ (buildScanTravelLegs_ ฝั่ง backend) แค่ทำฝั่ง
-// client เพื่อให้เพิ่มเที่ยวได้ทันทีไม่ต้องยิง API
+// เที่ยวขาเข้าใช้เวลา "เริ่มงาน" เป็นจุดอ้างอิง ขาออกใช้ "เลิกงาน" — เวลาที่
+// บันทึกถือเป็น "จุดเริ่มต้น" ของการเดินทางเสมอ (เฉพาะกรณีย้ายไซต์นี้เท่านั้น
+// คนละแบบกับ footer เดินทางรวมทีมของไซต์อื่น) คำนวณเหมือนกับตอนสแกน QR เป๊ะ
+// (buildScanTravelLegs_ ฝั่ง backend) แค่ทำฝั่ง client เพื่อให้เพิ่มเที่ยวได้
+// ทันทีไม่ต้องยิง API — preset "driver" วิ่ง Yusen->place->Yusen เสมอ
+// ไม่ว่าจะเป็นรอบเข้าหรือออก ต่างกันแค่ anchor มาจากฟิลด์ไหน
 function buildEditTravelLegs_(place, preset, anchorTime, isArrival) {
   var hours = PRESENCE_TRAVEL_HOURS[String(place || "").toUpperCase()] || 1;
   var mins = Math.round(hours * 60);
   var isDriver = preset === "driver";
 
-  if (isArrival) {
-    if (isDriver) {
-      var arriveBack = shiftTimeStr_(anchorTime, -mins);
-      var arriveOut = shiftTimeStr_(arriveBack, -mins);
-      return [
-        { from: "Yusen", to: place, start: arriveOut, end: arriveBack },
-        { from: place, to: "Yusen", start: arriveBack, end: anchorTime }
-      ];
-    }
-    return [{ from: place, to: "Yusen", start: shiftTimeStr_(anchorTime, -mins), end: anchorTime }];
-  }
-
   if (isDriver) {
-    var departOut = shiftTimeStr_(anchorTime, mins);
-    var departBack = shiftTimeStr_(departOut, mins);
+    var mid = shiftTimeStr_(anchorTime, mins);
+    var out = shiftTimeStr_(mid, mins);
     return [
-      { from: "Yusen", to: place, start: anchorTime, end: departOut },
-      { from: place, to: "Yusen", start: departOut, end: departBack }
+      { from: "Yusen", to: place, start: anchorTime, end: mid },
+      { from: place, to: "Yusen", start: mid, end: out }
     ];
   }
-  return [{ from: "Yusen", to: place, start: anchorTime, end: shiftTimeStr_(anchorTime, mins) }];
+
+  var fromPlace = isArrival ? place : "Yusen";
+  var toPlace = isArrival ? "Yusen" : place;
+  return [{ from: fromPlace, to: toPlace, start: anchorTime, end: shiftTimeStr_(anchorTime, mins) }];
 }
 
 function presenceEditTravelLegsSummaryHtml_() {
@@ -3411,6 +3405,17 @@ function addPresenceEditTravelLeg_() {
 
   var newLegs = buildEditTravelLegs_(place, peEditTravelPreset_ || "single", anchorTime, isArrival);
   presenceEditTravelLegs_ = presenceEditTravelLegs_.concat(newLegs);
+
+  // คนขับรับ-ส่งตอนออกงานต้องขับรถตลอดช่วงนั้น ไม่มีเวลาว่างพัก OT — บังคับ
+  // ไม่ได้พักเบรกให้อัตโนมัติ (re-render ทั้งฟอร์มเพื่อให้ปุ่มวิทยุ OT อัพเดท
+  // ตาม แต่ presenceEditTarget_ ยังเป็น object เดิม ไม่ล้างเที่ยวเดินทางที่เพิ่ง
+  // เพิ่มทิ้ง)
+  if (!isArrival && peEditTravelPreset_ === "driver") {
+    presenceEditTarget_.otType = "noBreak";
+    showPresenceEditForm_(presenceEditTarget_);
+    return;
+  }
+
   refreshPresenceEditTravelSection_();
 }
 
