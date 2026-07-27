@@ -116,7 +116,12 @@
     padding: 24px 28px; max-width: 980px; width: 100%;
   }
 
-  .page-heading { flex: 0 0 auto; margin: 0 0 18px; font-size: 22px; font-weight: bold; color: var(--navy); }
+  .page-heading { margin: 0; font-size: 22px; font-weight: bold; color: var(--navy); }
+
+  .queue-header-row {
+    flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; margin-bottom: 18px; flex-wrap: wrap;
+  }
 
   .view-panel { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
 
@@ -137,19 +142,20 @@
   .site-coral { background: #FAECE7; color: #712B13; }
   .site-purple { background: #EEEDFE; color: #26215C; }
 
-  .stat-cards { flex: 0 0 auto; display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-  .stat-card {
-    flex: 1 1 160px;
+  .stat-cards-mini { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; }
+  .stat-card-mini {
+    display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    min-width: 220px;
     background: #fff;
-    border-radius: 10px;
-    padding: 16px 18px;
+    border-radius: 8px;
+    padding: 8px 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    border-left: 5px solid var(--gray);
+    border-left: 4px solid var(--gray);
   }
   .stat-amber { border-left-color: var(--amber); }
   .stat-green { border-left-color: var(--green); }
-  .stat-red { border-left-color: var(--red); }
-  .stat-value { font-size: 36px; font-weight: bold; color: #1A1A1A; }
+  .stat-mini-label { font-size: 12.5px; color: var(--gray); }
+  .stat-mini-value { font-size: 20px; font-weight: bold; color: #1A1A1A; }
   .stat-label { font-size: 12.5px; color: var(--gray); margin-bottom: 6px; }
 
   .card {
@@ -294,20 +300,18 @@
 
     <main>
       <div id="printQueueView" class="view-panel">
-        <h2 class="page-heading">รอคิวพิมพ์....</h2>
+        <div class="queue-header-row">
+          <h2 class="page-heading">รอคิวพิมพ์....</h2>
 
-        <div class="stat-cards">
-          <div class="stat-card stat-amber">
-            <div class="stat-label">กำลังรอคิว</div>
-            <div class="stat-value" id="statQueued">0</div>
-          </div>
-          <div class="stat-card stat-green">
-            <div class="stat-label">พิมพ์แล้ว (วันนี้)</div>
-            <div class="stat-value" id="statPrinted">0</div>
-          </div>
-          <div class="stat-card stat-red">
-            <div class="stat-label">ล้มเหลว</div>
-            <div class="stat-value" id="statFailed">0</div>
+          <div class="stat-cards-mini">
+            <div class="stat-card-mini stat-amber">
+              <span class="stat-mini-label">กำลังรอคิว</span>
+              <span class="stat-mini-value" id="statQueued">0</span>
+            </div>
+            <div class="stat-card-mini stat-green">
+              <span class="stat-mini-label">พิมพ์แล้ว (วันนี้)</span>
+              <span class="stat-mini-value" id="statPrinted">0</span>
+            </div>
           </div>
         </div>
 
@@ -370,7 +374,6 @@ var POLL_INTERVAL_MS = 2500;
 var pollTimer_ = null;
 var isProcessing_ = false;
 var printedTodayCount_ = 0;
-var failedCount_ = 0;
 var logRowSeq_ = 0;
 
 function setStatus_(dotClass, text) {
@@ -408,9 +411,6 @@ function addLogRow_(job, state, message) {
   if (state === "printed") {
     printedTodayCount_++;
     document.getElementById("statPrinted").textContent = String(printedTodayCount_);
-  } else {
-    failedCount_++;
-    document.getElementById("statFailed").textContent = String(failedCount_);
   }
 
   var row = document.createElement("tr");
