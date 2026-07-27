@@ -916,6 +916,27 @@ body {
   align-items: center;
 }
 
+.travel-leg-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.travel-leg-row .leg-remove {
+  width: 2.4vh;
+  height: 2.4vh;
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+.travel-leg-row .leg-remove svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .travel-add-leg {
   width: 100%;
   padding: 8px;
@@ -3234,6 +3255,7 @@ function padTimeStr_(t) {
 // reference เพื่อรู้ว่าเป็นการ re-render ของ entry เดิม (เช่นตอนแก้เวลา) ไม่ใช่
 // เข้าฟอร์มใหม่ กันไม่ให้เที่ยวที่เพิ่งเพิ่มหายไปตอน re-render
 var presenceEditTravelLegs_ = [];
+var peEditTravelChecked_ = false;
 var peEditTravelPlace_ = "";
 var peEditTravelDir_ = "in";
 var peEditTravelPreset_ = "single";
@@ -3241,6 +3263,7 @@ var peEditTravelPreset_ = "single";
 function showPresenceEditForm_(entry) {
   if (presenceEditTarget_ !== entry) {
     presenceEditTravelLegs_ = (entry.travelLegs || []).slice();
+    peEditTravelChecked_ = presenceEditTravelLegs_.length > 0;
     peEditTravelPlace_ = PRESENCE_TRAVEL_PLACES[0];
     peEditTravelDir_ = "in";
     peEditTravelPreset_ = "single";
@@ -3266,7 +3289,7 @@ function showPresenceEditForm_(entry) {
         '</div>' +
       '</div>' +
       (!isLcbth ? '<label class="car-owner-option"><input type="checkbox" ' + (entry.isCarOwner ? "checked" : "") + ' onchange="updatePresenceEditField_(\'isCarOwner\', this.checked)"> เจ้าของรถ</label>' : '') +
-      '<div id="peTravelSection">' + (isLcbth ? renderPresenceEditTravelSection_() : '') + '</div>' +
+      '<div id="peTravelSection">' + (isLcbth ? renderPresenceEditTravelWrap_() : '') + '</div>' +
       '<button id="peSaveBtn" class="static-primary-btn" type="button" onclick="savePresenceEditEntry_()">' + checkCircleWhiteIcon() + '<span>บันทึก</span></button>' +
     '</div>';
 }
@@ -3304,10 +3327,36 @@ function buildEditTravelLegs_(place, preset, anchorTime, isArrival) {
 
 function presenceEditTravelLegsSummaryHtml_() {
   if (!presenceEditTravelLegs_.length) return '';
-  var lines = presenceEditTravelLegs_.map(function(leg) {
-    return escapeHtml(leg.start + '-' + leg.end + ' ' + leg.from + '-' + leg.to);
+  var rows = presenceEditTravelLegs_.map(function(leg, idx) {
+    return '<div class="travel-leg-row">' +
+      '<span>' + escapeHtml(leg.start + '-' + leg.end + ' ' + leg.from + '-' + leg.to) + '</span>' +
+      '<button type="button" class="leg-remove" onclick="removePresenceEditTravelLeg_(' + idx + ')">' + smallXIcon() + '</button>' +
+    '</div>';
   });
-  return '<p class="picker-context" style="margin:0 0 1vh;font-size:1.7vh;">เที่ยวที่บันทึกไว้:<br>' + lines.join('<br>') + '</p>';
+  return '<div class="picker-context" style="margin:0 0 1vh;font-size:1.7vh;">' +
+    '<div>เที่ยวที่บันทึกไว้:</div>' + rows.join('') +
+  '</div>';
+}
+
+// กล่อง "ย้ายไซต์" ต้องติ๊กก่อนถึงจะเห็นช่องกรอกอื่นๆ (สถานที่/ทิศทาง/รูปแบบ) —
+// เหมือนหน้ายืนยันตอนสแกน QR ไม่ใช่โชว์ตลอดแบบเดิม
+function renderPresenceEditTravelWrap_() {
+  var inner = peEditTravelChecked_ ? renderPresenceEditTravelSection_() : '';
+
+  return '<div class="edit-defect-section">' +
+    '<label class="travel-toggle" style="margin-top:0;"><input type="checkbox" ' + (peEditTravelChecked_ ? "checked" : "") + ' onchange="toggleEditTravelChecked_(this.checked)"> ย้ายไซต์</label>' +
+    inner +
+  '</div>';
+}
+
+function toggleEditTravelChecked_(checked) {
+  peEditTravelChecked_ = checked;
+  refreshPresenceEditTravelSection_();
+}
+
+function removePresenceEditTravelLeg_(idx) {
+  presenceEditTravelLegs_.splice(idx, 1);
+  refreshPresenceEditTravelSection_();
 }
 
 function renderPresenceEditTravelSection_() {
@@ -3323,24 +3372,28 @@ function renderPresenceEditTravelSection_() {
     return '<option value="' + pr.value + '"' + (peEditTravelPreset_ === pr.value ? ' selected' : '') + '>' + pr.label + '</option>';
   }).join('');
 
-  return '<div class="edit-defect-section">' +
-    '<p class="edit-defect-label">ย้ายไซต์</p>' +
-    presenceEditTravelLegsSummaryHtml_() +
+  // คนขับรถรับ-ส่ง (ขับรถพาคนอื่นไปด้วย) ของ LCBTH ก็ต้องระบุได้ว่าเป็นเจ้าของรถมั้ย
+  // เหมือนทีมอื่นๆ — โชว์เฉพาะตอนเลือกรูปแบบ "ขับรถ รับ-ส่ง" เท่านั้น
+  var carOwnerHtml = peEditTravelPreset_ === 'driver'
+    ? '<label class="car-owner-option"><input type="checkbox" ' + (presenceEditTarget_.isCarOwner ? "checked" : "") + ' onchange="updatePresenceEditField_(\'isCarOwner\', this.checked)"> เจ้าของรถ</label>'
+    : '';
+
+  return presenceEditTravelLegsSummaryHtml_() +
     '<div class="travel-selects">' +
       '<label>สถานที่<select onchange="peEditTravelPlace_ = this.value">' + placeOpts + '</select></label>' +
       '<label>ทิศทาง<select onchange="peEditTravelDir_ = this.value; refreshPresenceEditTravelSection_();">' +
         '<option value="in"' + (peEditTravelDir_ === 'in' ? ' selected' : '') + '>ขาเข้า</option>' +
         '<option value="out"' + (peEditTravelDir_ === 'out' ? ' selected' : '') + '>ขาออก</option>' +
       '</select></label>' +
-      '<label>รูปแบบ<select onchange="peEditTravelPreset_ = this.value">' + presetOpts + '</select></label>' +
+      '<label>รูปแบบ<select onchange="peEditTravelPreset_ = this.value; refreshPresenceEditTravelSection_();">' + presetOpts + '</select></label>' +
     '</div>' +
-    '<button type="button" class="travel-add-leg" onclick="addPresenceEditTravelLeg_()">+ เพิ่มเที่ยวเดินทาง</button>' +
-  '</div>';
+    carOwnerHtml +
+    '<button type="button" class="travel-add-leg" onclick="addPresenceEditTravelLeg_()">+ เพิ่มเที่ยวเดินทาง</button>';
 }
 
 function refreshPresenceEditTravelSection_() {
   var wrap = document.getElementById("peTravelSection");
-  if (wrap) wrap.innerHTML = renderPresenceEditTravelSection_();
+  if (wrap) wrap.innerHTML = renderPresenceEditTravelWrap_();
 }
 
 function addPresenceEditTravelLeg_() {
