@@ -1948,15 +1948,10 @@ function filterPickerList_() {
 function showHomeChoice_() {
   setPageTitle_("Trigo Report");
 
+  var showManualPresenceCreate = isElevatedEmployeeType_(currentEmployeeType_);
+
   document.getElementById("content").innerHTML =
     '<div class="home-menu">' +
-      /* ปุ่ม "สร้างใบลงชื่อ" เดิม — ซ่อนไว้ระหว่างทดลองฟีเจอร์ QR ลงชื่อเข้า-ออก
-         งานด้วยตัวเอง (ไม่ลบโค้ดข้างล่างทิ้ง เผื่อทดลองไม่สำเร็จจะเปิดกลับมา
-         ใช้ได้ทันที)
-      '<button type="button" class="home-menu-card" onclick="goFromHome_(showPresenceDatePicker_)">' +
-        '<span class="home-menu-card-title">สร้างใบลงชื่อ</span>' +
-        chevronIcon() +
-      '</button>' + */
       '<button type="button" class="home-menu-card" onclick="goFromHome_(function() { showCheckinLanding_(\'in\'); })">' +
         '<span class="home-menu-card-title">ลงชื่อเข้างาน</span>' +
         chevronIcon() +
@@ -1973,6 +1968,12 @@ function showHomeChoice_() {
         '<span class="home-menu-card-title">ตรวจสอบใบลงชื่อ</span>' +
         chevronIcon() +
       '</button>' +
+      (showManualPresenceCreate ?
+        '<button type="button" class="home-menu-card" onclick="goFromHome_(showPresenceDatePicker_)">' +
+          '<span class="home-menu-card-title">สร้างใบลงชื่อ</span>' +
+          chevronIcon() +
+        '</button>'
+        : '') +
     '</div>' +
     '<footer class="home-footer">' +
       '<div class="footer-brand">TRIGO REPORT</div>' +
