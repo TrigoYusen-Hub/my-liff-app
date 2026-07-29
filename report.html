@@ -3155,6 +3155,8 @@ function showPresenceReviewView_(entry) {
         '<div class="info-row"><span>เริ่มงาน</span><span class="info-value">' + escapeHtml(entry.start || "-") + '</span></div>' +
         '<div class="info-row"><span>เลิกงาน</span><span class="info-value">' + escapeHtml(entry.end || "-") + '</span></div>' +
         '<div class="info-row"><span>ชั่วโมงทำงาน</span><span class="info-value">' + escapeHtml(entry.workingHours || "-") + '</span></div>' +
+        (entry.actualScanStart ? '<div class="info-row"><span>เวลาสแกนเข้าจริง</span><span class="info-value">' + escapeHtml(entry.actualScanStart) + '</span></div>' : '') +
+        (entry.actualScanEnd ? '<div class="info-row"><span>เวลาสแกนออกจริง</span><span class="info-value">' + escapeHtml(entry.actualScanEnd) + '</span></div>' : '') +
       '</section>' +
       '<button id="reviewApproveBtn" class="static-approve-btn" type="button" onclick="approvePresenceReviewEntry_()">' + checkCircleWhiteIcon() + '<span>อนุมัติเวลานี้</span></button>' +
       '<button class="static-edit-btn" type="button" onclick="goto_(function() { showPresenceEditForm_(presenceReviewTarget_); })">' + editIcon() + '<span>แก้ไขเวลา</span></button>' +
@@ -3203,6 +3205,10 @@ function showPresenceViewOnly_(entry) {
         '<div class="info-row"><span>เริ่มงาน</span><span class="info-value">' + escapeHtml(entry.start || "-") + '</span></div>' +
         '<div class="info-row"><span>เลิกงาน</span><span class="info-value">' + escapeHtml(entry.end || "-") + '</span></div>' +
         '<div class="info-row"><span>ชั่วโมงทำงาน</span><span class="info-value">' + escapeHtml(entry.workingHours || "-") + '</span></div>' +
+        (entry.actualScanStart ? '<div class="info-row"><span>เวลาสแกนเข้าจริง</span><span class="info-value">' + escapeHtml(entry.actualScanStart) + '</span></div>' : '') +
+        (entry.actualScanEnd ? '<div class="info-row"><span>เวลาสแกนออกจริง</span><span class="info-value">' + escapeHtml(entry.actualScanEnd) + '</span></div>' : '') +
+        (entry.approvedBy ? '<div class="info-row"><span>อนุมัติโดย</span><span class="info-value">' + escapeHtml(entry.approvedBy) + '</span></div>' : '') +
+        (entry.approvedAt ? '<div class="info-row"><span>อนุมัติเมื่อ</span><span class="info-value">' + escapeHtml(entry.approvedAt) + '</span></div>' : '') +
         (entry.needsReview ? '<div class="info-row"><span>สถานะ</span><span class="info-value needs-review-tag">ต้องตรวจสอบ</span></div>' : '') +
       '</section>' +
       '<button class="static-secondary-btn" type="button" onclick="goBack_()"><span>ย้อนกลับ</span></button>' +
