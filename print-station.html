@@ -208,57 +208,60 @@
   }
 
   /* ----- Label ที่จะพิมพ์จริง (ซ่อนไว้ปกติ โชว์เฉพาะตอนสั่ง Print) -----
-     ม้วนจริง 32mm x 20mm ใบเดียวต่อแถว (LANES=1) */
+     เครื่อง Zebra รุ่นใหม่: ม้วน 3 ช่องขนานในแถวเดียว ช่องละ 32mm x 25mm
+     (LANES=3) — เนื้อหาพิมพ์ตรงหัวปกติ ไม่ต้องหมุนเหมือนเครื่องรุ่นเก่า
+     (LANES=1, 32x20mm) อีกต่อไป ยังไม่ผ่านการทดสอบพิมพ์จริง รอ confirm
+     ทิศทาง/ระยะจากเครื่องจริงก่อน */
   #printArea { display: none; }
 
   @media print {
     .app-shell { display: none !important; }
     #printArea { display: block; }
-    @page { size: 32mm 20mm; margin: 0; }
+    @page { size: 96mm 25mm; margin: 0; }
   }
 
   #labelRow {
     display: flex;
-    width: 32mm;
-    height: 20mm;
+    width: 96mm;
+    height: 25mm;
   }
 
   .label-slot {
     width: 32mm;
-    height: 20mm;
+    height: 25mm;
     position: relative;
     background: #fff;
     overflow: hidden;
   }
 
-  /* เอาชุด QR-บน/ตัวเลข-ล่างเดิม หมุนทั้งกลุ่ม -90 องศา — กรอบ virtual สลับ
-     เป็น 20mm x 32mm (สลับด้านจาก label จริง 32x20mm) ก่อนหมุน เพื่อให้
-     bounding box หลังหมุนพอดีกับตัว label จริง */
-  .label-content {
+  .label-slot canvas {
     position: absolute;
-    top: calc(50% - 2.5mm);
-    left: calc(50% + 3mm);
-    width: 20mm;
-    height: 32mm;
-    transform: translate(-50%, -50%) rotate(-90deg);
-  }
-  .label-content canvas {
-    position: absolute;
-    top: 3mm;
-    right: 4mm;
+    top: 1mm;
+    left: 8.5mm;
     width: 15mm;
     height: 15mm;
   }
-  .label-content .corner {
+
+  .label-slot .corner {
     position: absolute;
-    top: 24mm;
-    left: -1.6mm;
-    width: 20mm;
+    top: 16.3mm;
+    left: 0;
+    width: 32mm;
     text-align: center;
     font-family: Tahoma, sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: bold;
+    line-height: 1;
     white-space: nowrap;
+  }
+
+  .label-slot .full-logo {
+    position: absolute;
+    bottom: 0.8mm;
+    left: 50%;
+    height: 5mm;
+    width: auto;
+    transform: translateX(-50%);
   }
 </style>
 </head>
@@ -374,7 +377,9 @@
 
 <div id="printArea">
   <div id="labelRow">
-    <div class="label-slot" id="labelSlot0"><div class="label-content"><div class="corner"></div><canvas></canvas></div></div>
+    <div class="label-slot" id="labelSlot0"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full.png" alt=""></div>
+    <div class="label-slot" id="labelSlot1"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full.png" alt=""></div>
+    <div class="label-slot" id="labelSlot2"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full.png" alt=""></div>
   </div>
 </div>
 
@@ -474,35 +479,11 @@ function buildQrPayload_(job) {
   ].join("|");
 }
 
-// โลโก้ทับกลาง QR — โหลดครั้งเดียวไว้ล่วงหน้า ใช้ซ้ำได้ทุกใบไม่ต้องโหลดใหม่
-// ทุกครั้ง ตั้ง errorCorrectionLevel เป็น "H" (สำรองสูงสุด ~30%) ตอนสร้าง QR
-// เพื่อให้ยังสแกนได้แม้บางส่วนตรงกลางถูกโลโก้บังไป
-var qrLogoImg_ = new Image();
-qrLogoImg_.src = "trigo-icon-qr.png";
+// เครื่อง Zebra รุ่นใหม่: 3 ช่องขนานในแถวเดียว ช่องละ 32x25mm — โลโก้เต็มอยู่
+// ใต้ QR แทนการทับตรงกลางแบบเดิม (ดู .full-logo ใน CSS/HTML) ไม่ต้องคำนวณ
+// วาดทับ canvas อีกต่อไป
+var LANES = 3;
 
-function drawQrLogo_(canvas) {
-  var ctx = canvas.getContext("2d");
-  var size = canvas.width;
-  var logoBox = size * 0.24;
-  var cx = size / 2;
-  var cy = size / 2;
-
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(cx - logoBox / 2, cy - logoBox / 2, logoBox, logoBox);
-
-  var pad = logoBox * 0.08;
-  var innerBox = logoBox - pad * 2;
-  var scale = Math.min(innerBox / qrLogoImg_.naturalWidth, innerBox / qrLogoImg_.naturalHeight);
-  var drawW = qrLogoImg_.naturalWidth * scale;
-  var drawH = qrLogoImg_.naturalHeight * scale;
-  ctx.drawImage(qrLogoImg_, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
-}
-
-// ม้วนจริง 32x20mm ใบเดียวต่อแถว
-var LANES = 1;
-
-// ถ้าวันหลังเปลี่ยนม้วนเป็นแบบหลายช่องขนานอีก ค่อยปรับ LANES ขึ้น — โค้ดส่วน
-// renderLabelSlot_/processJobBatch_ รองรับหลายช่องอยู่แล้วโดยไม่ต้องแก้ตรงนี้
 function renderLabelSlot_(slotIndex, job) {
   var slot = document.getElementById("labelSlot" + slotIndex);
   var canvas = slot.querySelector("canvas");
@@ -517,12 +498,8 @@ function renderLabelSlot_(slotIndex, job) {
   var payload = buildQrPayload_(job);
 
   return new Promise(function(resolve, reject) {
-    QRCode.toCanvas(canvas, payload, { margin: 0, width: 180, errorCorrectionLevel: "H" }, function(err) {
+    QRCode.toCanvas(canvas, payload, { margin: 0, width: 180 }, function(err) {
       if (err) { reject(err); return; }
-
-      if (qrLogoImg_.complete && qrLogoImg_.naturalWidth) {
-        drawQrLogo_(canvas);
-      }
 
       // qrcode.js ตั้ง inline style width/height เป็น px เองตอน render (กัน
       // ภาพเบลอบนจอ retina) ซึ่งไปทับ CSS ขนาด mm ของเราให้ QR ใหญ่เกินช่อง
