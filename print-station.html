@@ -248,15 +248,15 @@
 
   .label-content canvas {
     position: absolute;
-    top: 2mm;
-    left: 5mm;
-    width: 15mm;
-    height: 15mm;
+    top: 4mm;
+    left: 7mm;
+    width: 16.5mm;
+    height: 16.5mm;
   }
 
   .label-content .corner {
     position: absolute;
-    top: 17.3mm;
+    top: 21mm;
     left: 0;
     width: 25mm;
     text-align: center;
@@ -265,15 +265,16 @@
     font-weight: bold;
     line-height: 1;
     white-space: nowrap;
+    transform: translateX(2mm);
   }
 
   .label-content .full-logo {
     position: absolute;
     bottom: 2mm;
     left: 50%;
-    width: 22mm;
+    width: 20mm;
     height: auto;
-    transform: translateX(-50%);
+    transform: translateX(calc(-50% - 1mm));
   }
 </style>
 </head>
