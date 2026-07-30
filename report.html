@@ -3351,17 +3351,43 @@ function padTimeStr_(t) {
 // เข้าฟอร์มใหม่ กันไม่ให้เที่ยวที่เพิ่งเพิ่มหายไปตอน re-render
 var presenceEditTravelLegs_ = [];
 var peEditTravelChecked_ = false;
+var peTravelMode_ = ""; // "" | "travel" | "siteTransfer"
 var peEditTravelPlace_ = "";
 var peEditTravelDir_ = "in";
 var peEditTravelPreset_ = "single";
+// ถ้าแถวนี้เคยบันทึกด้วยโหมด "เดินทาง" มาก่อน Start/End จริงจะรวมเวลาเดินทาง
+// (padded) ไปแล้ว — ต้องย้อนหาค่า "เวลาที่ประกาศ" กลับมาโชว์ในฟอร์ม ไม่งั้น
+// แก้ซ้ำแต่ละครั้งจะยิ่งบวกเวลาเดินทางซ้อนไปเรื่อยๆ (declaredEnd เก็บไว้ตรงๆ
+// อยู่แล้ว ส่วน declaredStart หาได้จากเที่ยวที่ "ถึง Yusen" ล่าสุด)
+function presenceEditDeclaredStart_(entry) {
+  if (!entry.travelLegs || !entry.travelLegs.length) return entry.start;
+  // เอาเที่ยว "ถึง Yusen" ที่เร็วที่สุด (ไม่ใช่ช้าที่สุด) เพราะขาเช้าถึงก่อนขา
+  // เย็นเสมอ — preset "driver" ตอนเย็นก็มีเที่ยว "ถึง Yusen" เหมือนกัน (คนขับ
+  // วิ่งกลับเปล่าหลังไปส่ง) ซึ่งจะช้ากว่าขาเช้ามากจนเอามาปนกันไม่ได้ถ้าใช้ max
+  var arrivalEnds = entry.travelLegs
+    .filter(function(l) { return l.to === "Yusen"; })
+    .map(function(l) { return timeToMinutes_(l.end); });
+  if (!arrivalEnds.length) return entry.start;
+  return minutesToTime_(Math.min.apply(null, arrivalEnds));
+}
 
 function showPresenceEditForm_(entry) {
   if (presenceEditTarget_ !== entry) {
     presenceEditTravelLegs_ = (entry.travelLegs || []).slice();
     peEditTravelChecked_ = presenceEditTravelLegs_.length > 0;
+    peTravelMode_ = entry.travelMode || (peEditTravelChecked_ ? "siteTransfer" : "");
     peEditTravelPlace_ = PRESENCE_TRAVEL_PLACES[0];
     peEditTravelDir_ = "in";
     peEditTravelPreset_ = "single";
+
+    // แปลงกลับเป็น "เวลาที่ประกาศ" ครั้งเดียวตอนโหลด แล้วเขียนทับ entry.start/end
+    // เลย ให้โค้ดส่วนอื่น (showOt, ปุ่มบันทึก, เพิ่มเที่ยว ฯลฯ) ใช้เป็นค่าปัจจุบัน
+    // ได้ปกติเหมือนไม่มีโหมดนี้ ไม่ต้องแยกเก็บอีกชุด (ไม่งั้นแก้ในฟอร์มแล้ว
+    // re-render จะเด้งกลับค่าเดิม)
+    if (entry.travelMode === "travel") {
+      entry.start = presenceEditDeclaredStart_(entry);
+      entry.end = entry.declaredEnd || entry.end;
+    }
   }
   presenceEditTarget_ = entry;
   setPageTitle_("แก้ไขใบลงชื่อ");
@@ -3374,6 +3400,7 @@ function showPresenceEditForm_(entry) {
     '<div class="picker-page">' +
       '<p class="picker-context">วันที่ : ' + escapeHtml(presenceEditState_.dateLabel) + '</p>' +
       '<p class="picker-context">พนักงาน : ' + escapeHtml(entry.employeeName) + '</p>' +
+      (peTravelMode_ === "travel" ? '<p class="picker-context">(เวลาด้านล่างคือเวลาทำงานที่ประกาศ ไม่รวมเดินทาง)</p>' : '') +
       '<div class="edit-form-row"><label>เริ่มงาน</label><input id="peStart" type="time" value="' + (padTimeStr_(entry.start) || "08:00") + '" onchange="updatePresenceEditField_(\'start\', this.value)"></div>' +
       '<div class="edit-form-row"><label>เลิกงาน</label><input id="peEnd" type="time" value="' + (padTimeStr_(entry.end) || "17:00") + '" onchange="updatePresenceEditField_(\'end\', this.value)"></div>' +
       '<div class="emp-row-extra' + (showOt ? '' : ' hidden') + '">' +
@@ -3414,6 +3441,55 @@ function buildEditTravelLegs_(place, preset, anchorTime, isArrival) {
   return [{ from: fromPlace, to: toPlace, start: anchorTime, end: shiftTimeStr_(anchorTime, mins) }];
 }
 
+// "เดินทาง"/"ขับรถรับ-ส่ง" — คนละแบบกับ buildEditTravelLegs_ (ย้ายไซต์) ข้างบน:
+// เวลาเดินทางอยู่นอกเวลาทำงานที่ประกาศเสมอ ขาเข้าคำนวณย้อนหลังให้จบพอดีที่
+// anchorTime (เวลาเริ่มงานที่ประกาศ), ขาออกคำนวณไปข้างหน้าจาก anchorTime
+// (เวลาเลิกงานที่ประกาศ) — ตรงกับ buildTravelLegs_ ในหน้าสร้างใบลงชื่อ manual
+function buildEditCommuteTravelLegs_(place, preset, anchorTime, isArrival) {
+  var hours = PRESENCE_TRAVEL_HOURS[String(place || "").toUpperCase()] || 1;
+  var mins = Math.round(hours * 60);
+  var isDriver = preset === "driver";
+
+  if (isDriver) {
+    if (isArrival) {
+      var pickupStart = shiftTimeStr_(anchorTime, -2 * mins);
+      var pickupMid = shiftTimeStr_(anchorTime, -mins);
+      return [
+        { from: "Yusen", to: place, start: pickupStart, end: pickupMid },
+        { from: place, to: "Yusen", start: pickupMid, end: anchorTime }
+      ];
+    }
+    var dropMid = shiftTimeStr_(anchorTime, mins);
+    var dropEnd = shiftTimeStr_(dropMid, mins);
+    return [
+      { from: "Yusen", to: place, start: anchorTime, end: dropMid },
+      { from: place, to: "Yusen", start: dropMid, end: dropEnd }
+    ];
+  }
+
+  if (isArrival) {
+    return [{ from: place, to: "Yusen", start: shiftTimeStr_(anchorTime, -mins), end: anchorTime }];
+  }
+  return [{ from: "Yusen", to: place, start: anchorTime, end: shiftTimeStr_(anchorTime, mins) }];
+}
+
+// Start/End จริงของโหมด "เดินทาง" = ครอบคลุมเที่ยวเดินทางทั้งหมด (จุดต้น-สุดของ
+// ทุกเที่ยว รวมกับเวลาที่ประกาศ) — เหมือน computePresenceLoggedRange_ ในหน้า
+// สร้างใบลงชื่อ manual เป๊ะ ส่วน "ย้ายไซต์" ไม่ปัดเลย ใช้เวลาที่ประกาศตรงๆ
+function computePresenceEditLoggedRange_(declaredStart, declaredEnd) {
+  if (peTravelMode_ !== "travel" || !presenceEditTravelLegs_.length) {
+    return { start: declaredStart, end: declaredEnd };
+  }
+  var mins = presenceEditTravelLegs_.reduce(function(acc, leg) {
+    var s = timeToMinutes_(leg.start), e = timeToMinutes_(leg.end);
+    if (!isNaN(s)) acc.push(s);
+    if (!isNaN(e)) acc.push(e);
+    return acc;
+  }, [timeToMinutes_(declaredStart), timeToMinutes_(declaredEnd)]);
+  var minM = Math.min.apply(null, mins), maxM = Math.max.apply(null, mins);
+  return { start: minutesToTime_(minM), end: minutesToTime_(maxM) };
+}
+
 function presenceEditTravelLegsSummaryHtml_() {
   if (!presenceEditTravelLegs_.length) return '';
   var rows = presenceEditTravelLegs_.map(function(leg, idx) {
@@ -3427,19 +3503,37 @@ function presenceEditTravelLegsSummaryHtml_() {
   '</div>';
 }
 
-// กล่อง "ย้ายไซต์" ต้องติ๊กก่อนถึงจะเห็นช่องกรอกอื่นๆ (สถานที่/ทิศทาง/รูปแบบ) —
-// เหมือนหน้ายืนยันตอนสแกน QR ไม่ใช่โชว์ตลอดแบบเดิม
+// กล่อง "เดินทาง"/"ย้ายไซต์" ต้องติ๊กก่อนถึงจะเห็นตัวเลือกโหมด — เหมือนหน้า
+// ยืนยันตอนสแกน QR ไม่ใช่โชว์ตลอดแบบเดิม
 function renderPresenceEditTravelWrap_() {
-  var inner = peEditTravelChecked_ ? renderPresenceEditTravelSection_() : '';
+  var inner = peEditTravelChecked_ ? renderPresenceEditTravelModeAndSection_() : '';
 
   return '<div class="edit-defect-section">' +
-    '<label class="travel-toggle" style="margin-top:0;"><input type="checkbox" ' + (peEditTravelChecked_ ? "checked" : "") + ' onchange="toggleEditTravelChecked_(this.checked)"> ย้ายไซต์</label>' +
+    '<label class="travel-toggle" style="margin-top:0;"><input type="checkbox" ' + (peEditTravelChecked_ ? "checked" : "") + ' onchange="toggleEditTravelChecked_(this.checked)"> เดินทาง/ย้ายไซต์</label>' +
     inner +
   '</div>';
 }
 
+function renderPresenceEditTravelModeAndSection_() {
+  if (!peTravelMode_) peTravelMode_ = "travel";
+
+  var modeHtml = '<div class="ot-type-group">' +
+    '<label class="ot-type-option"><input type="radio" name="peTravelMode" value="travel" ' + (peTravelMode_ === "travel" ? "checked" : "") + ' onchange="setPeTravelMode_(\'travel\')"> เดินทาง</label>' +
+    '<label class="ot-type-option"><input type="radio" name="peTravelMode" value="siteTransfer" ' + (peTravelMode_ === "siteTransfer" ? "checked" : "") + ' onchange="setPeTravelMode_(\'siteTransfer\')"> ย้ายไซต์</label>' +
+  '</div>';
+
+  return modeHtml + renderPresenceEditTravelSection_();
+}
+
+function setPeTravelMode_(mode) {
+  peTravelMode_ = mode;
+  presenceEditTravelLegs_ = [];
+  refreshPresenceEditTravelSection_();
+}
+
 function toggleEditTravelChecked_(checked) {
   peEditTravelChecked_ = checked;
+  if (checked && !peTravelMode_) peTravelMode_ = "travel";
   refreshPresenceEditTravelSection_();
 }
 
@@ -3454,16 +3548,18 @@ function renderPresenceEditTravelSection_() {
   }).join('');
 
   var dirLabel = peEditTravelDir_ === 'out' ? 'เดินทางกลับ' : 'เดินทางมา';
+  var presetLabel = peTravelMode_ === "travel" ? "เดินทางเอง" : dirLabel;
   var presetOpts = [
-    { value: 'single', label: dirLabel },
+    { value: 'single', label: presetLabel },
     { value: 'driver', label: 'ขับรถ รับ-ส่ง' }
   ].map(function(pr) {
     return '<option value="' + pr.value + '"' + (peEditTravelPreset_ === pr.value ? ' selected' : '') + '>' + pr.label + '</option>';
   }).join('');
 
-  // คนขับรถรับ-ส่ง (ขับรถพาคนอื่นไปด้วย) ของ LCBTH ก็ต้องระบุได้ว่าเป็นเจ้าของรถมั้ย
-  // เหมือนทีมอื่นๆ — โชว์เฉพาะตอนเลือกรูปแบบ "ขับรถ รับ-ส่ง" เท่านั้น
-  var carOwnerHtml = peEditTravelPreset_ === 'driver'
+  // โหมด "เดินทาง" โชว์เจ้าของรถเสมอ (ไม่ต้องรอเลือกขับรถรับ-ส่ง) ตรงกับหน้า
+  // ยืนยันตอนสแกน — โหมด "ย้ายไซต์" โชว์เฉพาะตอนเลือกขับรถ รับ-ส่ง เหมือนเดิม
+  var showCarOwner = peTravelMode_ === "travel" || peEditTravelPreset_ === "driver";
+  var carOwnerHtml = showCarOwner
     ? '<label class="car-owner-option"><input type="checkbox" ' + (presenceEditTarget_.isCarOwner ? "checked" : "") + ' onchange="updatePresenceEditField_(\'isCarOwner\', this.checked)"> เจ้าของรถ</label>'
     : '';
 
@@ -3498,14 +3594,18 @@ function addPresenceEditTravelLeg_() {
     return;
   }
 
-  var newLegs = buildEditTravelLegs_(place, peEditTravelPreset_ || "single", anchorTime, isArrival);
+  var preset = peEditTravelPreset_ || "single";
+  var newLegs = peTravelMode_ === "travel"
+    ? buildEditCommuteTravelLegs_(place, preset, anchorTime, isArrival)
+    : buildEditTravelLegs_(place, preset, anchorTime, isArrival);
   presenceEditTravelLegs_ = presenceEditTravelLegs_.concat(newLegs);
 
-  // คนขับรับ-ส่งตอนออกงานต้องขับรถตลอดช่วงนั้น ไม่มีเวลาว่างพัก OT — บังคับ
-  // ไม่ได้พักเบรกให้อัตโนมัติ (re-render ทั้งฟอร์มเพื่อให้ปุ่มวิทยุ OT อัพเดท
-  // ตาม แต่ presenceEditTarget_ ยังเป็น object เดิม ไม่ล้างเที่ยวเดินทางที่เพิ่ง
-  // เพิ่มทิ้ง)
-  if (!isArrival && peEditTravelPreset_ === "driver") {
+  // เฉพาะโหมด "ย้ายไซต์" (สูตรเดิม): คนขับรับ-ส่งตอนออกงานต้องขับรถตลอดช่วงนั้น
+  // ไม่มีเวลาว่างพัก OT — บังคับไม่ได้พักเบรกให้อัตโนมัติ (re-render ทั้งฟอร์ม
+  // เพื่อให้ปุ่มวิทยุ OT อัพเดทตาม แต่ presenceEditTarget_ ยังเป็น object เดิม
+  // ไม่ล้างเที่ยวเดินทางที่เพิ่งเพิ่มทิ้ง) — โหมด "เดินทาง" ไม่บังคับ ให้แอดมิน
+  // เลือกเองผ่านปุ่มวิทยุ OT ตามจริง เพราะ OT ตัดสินจากเวลาที่ประกาศแยกแล้ว
+  if (peTravelMode_ === "siteTransfer" && !isArrival && preset === "driver") {
     presenceEditTarget_.otType = "noBreak";
     showPresenceEditForm_(presenceEditTarget_);
     return;
@@ -3530,25 +3630,30 @@ function savePresenceEditEntry_() {
     btn.disabled = true;
   }
 
-  var start = document.getElementById("peStart").value;
-  var end = document.getElementById("peEnd").value;
+  var declaredStart = document.getElementById("peStart").value;
+  var declaredEnd = document.getElementById("peEnd").value;
 
-  if (!start || !end) {
+  if (!declaredStart || !declaredEnd) {
     alert("กรุณาระบุเวลาเริ่ม-จบ");
     if (btn) btn.disabled = false;
     return;
   }
+
+  var isTravelMode = peEditTravelChecked_ && peTravelMode_ === "travel";
+  var range = isTravelMode ? computePresenceEditLoggedRange_(declaredStart, declaredEnd) : { start: declaredStart, end: declaredEnd };
 
   api("editPresenceEntry", {
     payload: {
       lineUserId: currentLineUserId,
       dateStr: presenceEditState_.dateStr,
       employeeId: presenceEditTarget_.employeeId,
-      start: start,
-      end: end,
+      start: range.start,
+      end: range.end,
       otType: presenceEditTarget_.otType || "normal",
       isCarOwner: !!presenceEditTarget_.isCarOwner,
-      travelLegs: presenceEditTravelLegs_
+      travelLegs: presenceEditTravelLegs_,
+      declaredEnd: isTravelMode ? declaredEnd : "",
+      travelMode: peEditTravelChecked_ ? peTravelMode_ : ""
     }
   }).then(function(data) {
     if (data && data.ok) {
