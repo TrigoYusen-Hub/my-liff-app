@@ -209,9 +209,12 @@
 
   /* ----- Label ที่จะพิมพ์จริง (ซ่อนไว้ปกติ โชว์เฉพาะตอนสั่ง Print) -----
      เครื่อง Zebra รุ่นใหม่: ม้วน 3 ช่องขนานในแถวเดียว ช่องละ 32mm x 25mm
-     (LANES=3) — เนื้อหาพิมพ์ตรงหัวปกติ ไม่ต้องหมุนเหมือนเครื่องรุ่นเก่า
-     (LANES=1, 32x20mm) อีกต่อไป ยังไม่ผ่านการทดสอบพิมพ์จริง รอ confirm
-     ทิศทาง/ระยะจากเครื่องจริงก่อน */
+     (LANES=3) — ยังต้องหมุนเนื้อหา -90 องศาเหมือนเครื่องรุ่นเก่า (เดิม
+     LANES=1, 32x20mm) กรอบ virtual สลับเป็น 25mm x 32mm (สลับด้านจาก
+     label จริง 32x25mm ต่อช่อง) ก่อนหมุน เพื่อให้ bounding box หลังหมุนพอดี
+     กับตัว label จริง — จุดหมุนตั้งกึ่งกลางพอดี (ไม่มีการขยับชดเชยแบบเครื่อง
+     เก่าที่มี top/left offset เพิ่ม เพราะยังไม่เคยพิมพ์จริงกับเครื่องนี้ อาจ
+     ต้องขยับตามที่เห็นจากการพิมพ์จริง) */
   #printArea { display: none; }
 
   @media print {
@@ -234,19 +237,28 @@
     overflow: hidden;
   }
 
-  .label-slot canvas {
+  .label-content {
     position: absolute;
-    top: 1mm;
-    left: 8.5mm;
+    top: 50%;
+    left: 50%;
+    width: 25mm;
+    height: 32mm;
+    transform: translate(-50%, -50%) rotate(-90deg);
+  }
+
+  .label-content canvas {
+    position: absolute;
+    top: 2mm;
+    left: 5mm;
     width: 15mm;
     height: 15mm;
   }
 
-  .label-slot .corner {
+  .label-content .corner {
     position: absolute;
-    top: 16.3mm;
+    top: 17.3mm;
     left: 0;
-    width: 32mm;
+    width: 25mm;
     text-align: center;
     font-family: Tahoma, sans-serif;
     font-size: 10px;
@@ -255,12 +267,12 @@
     white-space: nowrap;
   }
 
-  .label-slot .full-logo {
+  .label-content .full-logo {
     position: absolute;
-    bottom: 0.8mm;
+    bottom: 2mm;
     left: 50%;
-    height: 5mm;
-    width: auto;
+    width: 22mm;
+    height: auto;
     transform: translateX(-50%);
   }
 </style>
@@ -377,9 +389,9 @@
 
 <div id="printArea">
   <div id="labelRow">
-    <div class="label-slot" id="labelSlot0"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full.png" alt=""></div>
-    <div class="label-slot" id="labelSlot1"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full.png" alt=""></div>
-    <div class="label-slot" id="labelSlot2"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full.png" alt=""></div>
+    <div class="label-slot" id="labelSlot0"><div class="label-content"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full.png" alt=""></div></div>
+    <div class="label-slot" id="labelSlot1"><div class="label-content"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full.png" alt=""></div></div>
+    <div class="label-slot" id="labelSlot2"><div class="label-content"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full.png" alt=""></div></div>
   </div>
 </div>
 
