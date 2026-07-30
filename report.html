@@ -3330,7 +3330,7 @@ async function showPresenceEditAddEmployeeView_() {
     onSelect: function(item) {
       var src = available.find(function(e) { return e.employeeId === item.value; });
       goto_(function() {
-        showPresenceEditForm_({ employeeId: item.value, employeeName: item.title, start: "08:00", end: "17:00", otType: "normal", isCarOwner: false, team: src ? presenceEmployeeTeam_(src.site) : "" });
+        showPresenceEditForm_({ employeeId: item.value, employeeName: item.title, start: "08:00", end: "17:00", otType: "normal", isCarOwner: false, team: src ? presenceEmployeeTeam_(src.site) : "", isNew: true });
       });
     }
   });
@@ -3413,7 +3413,43 @@ function showPresenceEditForm_(entry) {
       (!isLcbth ? '<label class="car-owner-option"><input type="checkbox" ' + (entry.isCarOwner ? "checked" : "") + ' onchange="updatePresenceEditField_(\'isCarOwner\', this.checked)"> เจ้าของรถ</label>' : '') +
       '<div id="peTravelSection">' + (isLcbth ? renderPresenceEditTravelWrap_() : '') + '</div>' +
       '<button id="peSaveBtn" class="static-primary-btn" type="button" onclick="savePresenceEditEntry_()">' + checkCircleWhiteIcon() + '<span>บันทึก</span></button>' +
+      (!entry.isNew ? '<button id="peDeleteBtn" class="static-danger-btn" type="button" style="margin-top:1.4vh;" onclick="deletePresenceEditEntry_()">' + trashIcon() + '<span>ลบพนักงานออก</span></button>' : '') +
     '</div>';
+}
+
+// ลบใบลงชื่อของคนนี้ออกจากวันนี้ทั้งแถว (ลงผิดคน/ลงซ้ำ) — กู้คืนไม่ได้ ต้อง
+// confirm ก่อนเสมอ เอกสารที่พิมพ์จะ sync ใหม่ให้อัตโนมัติหลังลบสำเร็จ
+function deletePresenceEditEntry_() {
+  var saveBtn = document.getElementById("peSaveBtn");
+  var deleteBtn = document.getElementById("peDeleteBtn");
+
+  if (!confirm("ลบใบลงชื่อของ " + presenceEditTarget_.employeeName + " ออกจากวันที่ " + presenceEditState_.dateLabel + "?\nกู้คืนไม่ได้")) {
+    return;
+  }
+
+  if (saveBtn) saveBtn.disabled = true;
+  if (deleteBtn) deleteBtn.disabled = true;
+
+  api("deletePresenceEntry", {
+    payload: {
+      lineUserId: currentLineUserId,
+      dateStr: presenceEditState_.dateStr,
+      employeeId: presenceEditTarget_.employeeId
+    }
+  }).then(function(data) {
+    if (data && data.ok) {
+      alert("ลบเรียบร้อย");
+      goto_(showPresenceEditListView_);
+      return;
+    }
+    if (saveBtn) saveBtn.disabled = false;
+    if (deleteBtn) deleteBtn.disabled = false;
+    alert((data && data.error) || "ลบไม่สำเร็จ");
+  }).catch(function(err) {
+    if (saveBtn) saveBtn.disabled = false;
+    if (deleteBtn) deleteBtn.disabled = false;
+    alert(err.message || err);
+  });
 }
 
 // เที่ยวขาเข้าใช้เวลา "เริ่มงาน" เป็นจุดอ้างอิง ขาออกใช้ "เลิกงาน" — เวลาที่
