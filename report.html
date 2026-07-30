@@ -1889,6 +1889,11 @@ function timeToMinutes_(t) {
   return Number(parts[0]) * 60 + Number(parts[1] || 0);
 }
 
+function minutesToTime_(m) {
+  if (m < 0) m = 0;
+  return pad2_(Math.floor(m / 60)) + ":" + pad2_(m % 60);
+}
+
 function formatDateForApi_(d) {
   return pad2_(d.getDate()) + "/" + pad2_(d.getMonth() + 1) + "/" + d.getFullYear();
 }
@@ -2052,8 +2057,12 @@ function showPresenceEmployeeListView_() {
         '<label class="car-owner-option"><input type="checkbox" ' + (item.isCarOwner ? "checked" : "") + ' onchange="updatePresenceField_(\'' + item.employeeId + '\', \'isCarOwner\', this.checked)"> เจ้าของรถ</label>'
         : '') +
       (team === "LCBTH" ?
-        '<label class="travel-toggle"><input type="checkbox" ' + (item.travel ? "checked" : "") + ' onchange="togglePresenceTravel_(\'' + item.employeeId + '\', this.checked)"> เดินทาง</label>' +
-        (item.travel ? renderTravelEditor_(item) : '')
+        '<div class="ot-type-group">' +
+          '<label class="ot-type-option"><input type="radio" name="travelmode_' + item.employeeId + '" value="" ' + (!item.travelMode ? "checked" : "") + ' onchange="setPresenceTravelMode_(\'' + item.employeeId + '\', \'\')"> ไม่มี</label>' +
+          '<label class="ot-type-option"><input type="radio" name="travelmode_' + item.employeeId + '" value="travel" ' + (item.travelMode === "travel" ? "checked" : "") + ' onchange="setPresenceTravelMode_(\'' + item.employeeId + '\', \'travel\')"> เดินทาง</label>' +
+          '<label class="ot-type-option"><input type="radio" name="travelmode_' + item.employeeId + '" value="siteTransfer" ' + (item.travelMode === "siteTransfer" ? "checked" : "") + ' onchange="setPresenceTravelMode_(\'' + item.employeeId + '\', \'siteTransfer\')"> ย้ายไซต์</label>' +
+        '</div>' +
+        (item.travelMode ? renderTravelEditor_(item) : '')
         : '') +
     '</div>';
   }).join("");
@@ -2079,6 +2088,12 @@ function updatePresenceField_(employeeId, field, value) {
   if (!item) return;
   item[field] = value;
   if (field === "end" || field === "start") {
+    // เวลาทำงานเปลี่ยน ต้องคำนวณเที่ยวเดินทางใหม่ตามเวลาที่ประกาศล่าสุด
+    if (item.travelMode === "travel" && item.travelPlace) {
+      item.travelLegs = buildTravelLegs_(resolveTravelHours_(item.travelPlace), item.travelPreset || "in", item.start, item.end, item.travelPlace);
+    } else if (item.travelMode === "siteTransfer" && item.travelPlace) {
+      item.travelLegs = buildSiteTransferLeg_(item.travelPlace, resolveTravelHours_(item.travelPlace), item.start);
+    }
     showPresenceEmployeeListView_();
   }
 }
@@ -2086,6 +2101,9 @@ function updatePresenceField_(employeeId, field, value) {
 // ---- เดินทางรายคน (เฉพาะ Site LCBTH) ----
 var PRESENCE_TRAVEL_PLACES = ["MMTH", "KUEHNE", "Rayong", "Amata"];
 var PRESENCE_TRAVEL_HOURS = { MMTH: 0.5, KUEHNE: 0.5, RAYONG: 1, AMATA: 1 };
+// ทีมที่ไม่ใช่ LCBTH มีเวลาเดินทางจาก site ตัวเองอยู่แล้วทุกวัน ไม่ต้องเลือกเอง
+// (ตรงกับ travelHoursByTeam ฝั่ง backend ครอบคลุมโซนย่อยของ Bangna ด้วย)
+var PRESENCE_TRAVEL_HOURS_BY_TEAM = { AMATA: 1, RAYONG: 1, BENZ: 2, NISSAN: 1.5, WELGROW: 1.25, BANGNA: 2.25 };
 var PRESENCE_TRAVEL_PRESETS = [
   { value: "in", label: "ขาเข้าอย่างเดียว" },
   { value: "round", label: "ไป-กลับปกติ" },
@@ -2114,8 +2132,9 @@ function travelLegIsOt_(leg) {
 }
 
 // preset เติมเที่ยวให้อัตโนมัติจากสถานที่ + เวลาเข้า-ออก (แก้เวลาเองได้ทีหลัง)
-function buildTravelLegs_(place, preset, workStart, workEnd) {
-  var mins = Math.round((PRESENCE_TRAVEL_HOURS[String(place || "").toUpperCase()] || 1) * 60);
+// — โหมด "เดินทาง"/"ขับรถรับ-ส่ง": เวลาเดินทางอยู่นอกเวลาทำงานที่ประกาศเสมอ
+function buildTravelLegs_(hours, preset, workStart, workEnd, place) {
+  var mins = Math.round((hours || 1) * 60);
   var ws = workStart || "08:00";
   var we = workEnd || "17:00";
 
@@ -2139,14 +2158,36 @@ function buildTravelLegs_(place, preset, workStart, workEnd) {
   return [{ from: "Yusen", to: place, start: "", end: "" }];
 }
 
+// "ย้ายไซต์" — คนละสูตรกับ "เดินทาง" ข้างบน: เวลาที่ประกาศ (workStart) คือจุด
+// เริ่มเที่ยวเดินทางตรงๆ ไม่มีการปัดออกนอกเวลางาน (สูตร 27/7 เดิม ไม่เปลี่ยน)
+function buildSiteTransferLeg_(place, hours, workStart) {
+  var mins = Math.round(hours * 60);
+  return [{ from: place, to: "Yusen", start: workStart || "08:00", end: shiftTimeStr_(workStart || "08:00", mins) }];
+}
+
 function travelDirOptions_(sel) {
   return ["Yusen"].concat(PRESENCE_TRAVEL_PLACES).map(function(p) {
     return '<option' + (String(sel) === p ? ' selected' : '') + '>' + p + '</option>';
   }).join("");
 }
 
+function resolveTravelHours_(place) {
+  return PRESENCE_TRAVEL_HOURS[String(place || "").toUpperCase()] || 1;
+}
+
 function renderTravelEditor_(item) {
   var id = item.employeeId;
+
+  if (item.travelMode === "siteTransfer") {
+    var stOpts = PRESENCE_TRAVEL_PLACES.map(function(p) {
+      return '<option value="' + p + '"' + (String(item.travelPlace) === p ? ' selected' : '') + '>' + p + '</option>';
+    }).join("");
+    return '<div class="travel-editor">' +
+      '<div class="travel-selects">' +
+        '<label>ไซต์ที่ย้ายมา<select onchange="setPresenceTravelPlace_(\'' + id + '\',this.value)">' + stOpts + '</select></label>' +
+      '</div>' +
+    '</div>';
+  }
 
   var placeOpts = PRESENCE_TRAVEL_PLACES.map(function(p) {
     return '<option value="' + p + '"' + (String(item.travelPlace) === p ? ' selected' : '') + '>' + p + '</option>';
@@ -2178,19 +2219,28 @@ function renderTravelEditor_(item) {
       '<label>สถานที่<select onchange="setPresenceTravelPlace_(\'' + id + '\',this.value)">' + placeOpts + '</select></label>' +
       '<label>รูปแบบ<select onchange="setPresenceTravelPreset_(\'' + id + '\',this.value)">' + presetOpts + '</select></label>' +
     '</div>' +
+    (item.travelPreset === "driver" ?
+      '<label class="car-owner-option"><input type="checkbox" ' + (item.isCarOwner ? "checked" : "") + ' onchange="updatePresenceField_(\'' + id + '\', \'isCarOwner\', this.checked)"> เจ้าของรถ</label>'
+      : '') +
     '<div class="travel-legs">' + legsHtml + '</div>' +
     '<button type="button" class="travel-add-leg" onclick="addPresenceLeg_(\'' + id + '\')">+ เพิ่มเที่ยว</button>' +
   '</div>';
 }
 
-function togglePresenceTravel_(id, checked) {
+function setPresenceTravelMode_(id, mode) {
   var item = findPresenceEmp_(id);
   if (!item) return;
-  item.travel = checked;
-  if (checked) {
+  item.travelMode = mode;
+
+  if (mode === "travel") {
     if (!item.travelPlace) item.travelPlace = PRESENCE_TRAVEL_PLACES[0];
     if (!item.travelPreset) item.travelPreset = "in";
-    item.travelLegs = buildTravelLegs_(item.travelPlace, item.travelPreset, item.start, item.end);
+    item.travelLegs = buildTravelLegs_(resolveTravelHours_(item.travelPlace), item.travelPreset, item.start, item.end, item.travelPlace);
+  } else if (mode === "siteTransfer") {
+    if (!item.travelPlace) item.travelPlace = PRESENCE_TRAVEL_PLACES[0];
+    item.travelLegs = buildSiteTransferLeg_(item.travelPlace, resolveTravelHours_(item.travelPlace), item.start);
+  } else {
+    item.travelLegs = [];
   }
   showPresenceEmployeeListView_();
 }
@@ -2199,7 +2249,11 @@ function setPresenceTravelPlace_(id, place) {
   var item = findPresenceEmp_(id);
   if (!item) return;
   item.travelPlace = place;
-  item.travelLegs = buildTravelLegs_(place, item.travelPreset || "in", item.start, item.end);
+  if (item.travelMode === "siteTransfer") {
+    item.travelLegs = buildSiteTransferLeg_(place, resolveTravelHours_(place), item.start);
+  } else {
+    item.travelLegs = buildTravelLegs_(resolveTravelHours_(place), item.travelPreset || "in", item.start, item.end, place);
+  }
   showPresenceEmployeeListView_();
 }
 
@@ -2207,8 +2261,26 @@ function setPresenceTravelPreset_(id, preset) {
   var item = findPresenceEmp_(id);
   if (!item) return;
   item.travelPreset = preset;
-  item.travelLegs = buildTravelLegs_(item.travelPlace || PRESENCE_TRAVEL_PLACES[0], preset, item.start, item.end);
+  var place = item.travelPlace || PRESENCE_TRAVEL_PLACES[0];
+  item.travelLegs = buildTravelLegs_(resolveTravelHours_(place), preset, item.start, item.end, place);
   showPresenceEmployeeListView_();
+}
+
+// Start/End จริงที่ใช้บันทึก+พิมพ์เอกสาร = ครอบคลุมเที่ยวเดินทางทั้งหมดด้วย
+// (โหมด "เดินทาง") หาได้จากจุดต้น-สุดของทุกเที่ยว รวมกับเวลาทำงานที่ประกาศ —
+// ส่วน "ย้ายไซต์" ไม่ปัดเลย ใช้เวลาที่ประกาศตรงๆ
+function computePresenceLoggedRange_(item) {
+  if (item.travelMode !== "travel" || !item.travelLegs || !item.travelLegs.length) {
+    return { start: item.start, end: item.end };
+  }
+  var mins = item.travelLegs.reduce(function(acc, leg) {
+    var s = timeToMinutes_(leg.start), e = timeToMinutes_(leg.end);
+    if (!isNaN(s)) { acc.push(s); }
+    if (!isNaN(e)) { acc.push(e); }
+    return acc;
+  }, [timeToMinutes_(item.start), timeToMinutes_(item.end)]);
+  var minM = Math.min.apply(null, mins), maxM = Math.max.apply(null, mins);
+  return { start: minutesToTime_(minM), end: minutesToTime_(maxM) };
 }
 
 // แก้ค่าในเที่ยว — ไม่ re-render เพื่อไม่ให้ช่องเวลาเด้งหลุดโฟกัสตอนกรอกทีละช่อง
@@ -2269,7 +2341,8 @@ async function showPresenceAddEmployeeView_() {
     }),
     onConfirm: function(selectedItems) {
       selectedItems.forEach(function(item) {
-        presenceState.employees.push({
+        var team = presenceEmployeeTeam_(item.raw.site);
+        var newItem = {
           employeeId: item.raw.employeeId,
           name: item.raw.name,
           site: item.raw.site,
@@ -2277,11 +2350,21 @@ async function showPresenceAddEmployeeView_() {
           end: "17:00",
           otType: "normal",
           isCarOwner: false,
-          travel: false,
+          travelMode: "",
           travelPlace: "",
           travelPreset: "",
           travelLegs: []
-        });
+        };
+        // ทีมที่ไม่ใช่ LCBTH มีเวลาเดินทางจาก site ตัวเองอยู่แล้วทุกวัน คำนวณ
+        // ให้อัตโนมัติทันที ไม่ต้องให้เลือกเอง (มีแค่ช่องติ๊กเจ้าของรถ)
+        var autoHours = PRESENCE_TRAVEL_HOURS_BY_TEAM[team];
+        if (autoHours) {
+          newItem.travelMode = "travel";
+          newItem.travelPlace = team;
+          newItem.travelPreset = "round";
+          newItem.travelLegs = buildTravelLegs_(autoHours, "round", newItem.start, newItem.end, team);
+        }
+        presenceState.employees.push(newItem);
       });
       goBack_();
     }
@@ -2387,14 +2470,17 @@ function submitPresenceSheet_() {
   if (btn) btn.disabled = true;
 
   var employees = presenceState.employees.map(function(e) {
-    var legs = (e.travel && e.travelLegs) ? e.travelLegs.filter(function(l) { return l.start && l.end; }) : [];
+    var legs = (e.travelMode && e.travelLegs) ? e.travelLegs.filter(function(l) { return l.start && l.end; }) : [];
+    var range = computePresenceLoggedRange_(e);
     return {
       employeeId: e.employeeId,
-      start: e.start,
-      end: e.end,
+      start: range.start,
+      end: range.end,
       otType: e.otType,
       isCarOwner: e.isCarOwner,
-      travelLegs: legs
+      travelLegs: legs,
+      declaredEnd: e.travelMode === "travel" ? e.end : "",
+      travelMode: e.travelMode || ""
     };
   });
 
