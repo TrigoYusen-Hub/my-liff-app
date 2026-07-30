@@ -474,6 +474,30 @@ function buildQrPayload_(job) {
   ].join("|");
 }
 
+// โลโก้ทับกลาง QR — โหลดครั้งเดียวไว้ล่วงหน้า ใช้ซ้ำได้ทุกใบไม่ต้องโหลดใหม่
+// ทุกครั้ง ตั้ง errorCorrectionLevel เป็น "H" (สำรองสูงสุด ~30%) ตอนสร้าง QR
+// เพื่อให้ยังสแกนได้แม้บางส่วนตรงกลางถูกโลโก้บังไป
+var qrLogoImg_ = new Image();
+qrLogoImg_.src = "trigo-icon-qr.png";
+
+function drawQrLogo_(canvas) {
+  var ctx = canvas.getContext("2d");
+  var size = canvas.width;
+  var logoBox = size * 0.24;
+  var cx = size / 2;
+  var cy = size / 2;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(cx - logoBox / 2, cy - logoBox / 2, logoBox, logoBox);
+
+  var pad = logoBox * 0.08;
+  var innerBox = logoBox - pad * 2;
+  var scale = Math.min(innerBox / qrLogoImg_.naturalWidth, innerBox / qrLogoImg_.naturalHeight);
+  var drawW = qrLogoImg_.naturalWidth * scale;
+  var drawH = qrLogoImg_.naturalHeight * scale;
+  ctx.drawImage(qrLogoImg_, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+}
+
 // ม้วนจริง 32x20mm ใบเดียวต่อแถว
 var LANES = 1;
 
@@ -493,8 +517,12 @@ function renderLabelSlot_(slotIndex, job) {
   var payload = buildQrPayload_(job);
 
   return new Promise(function(resolve, reject) {
-    QRCode.toCanvas(canvas, payload, { margin: 0, width: 180 }, function(err) {
+    QRCode.toCanvas(canvas, payload, { margin: 0, width: 180, errorCorrectionLevel: "H" }, function(err) {
       if (err) { reject(err); return; }
+
+      if (qrLogoImg_.complete && qrLogoImg_.naturalWidth) {
+        drawQrLogo_(canvas);
+      }
 
       // qrcode.js ตั้ง inline style width/height เป็น px เองตอน render (กัน
       // ภาพเบลอบนจอ retina) ซึ่งไปทับ CSS ขนาด mm ของเราให้ QR ใหญ่เกินช่อง
