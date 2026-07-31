@@ -482,13 +482,13 @@ function escapeHtml_(s) {
 // ใน Excel แล้วใช้ Text to Columns แยกคอลัมน์ได้ทันที
 function buildQrPayload_(job) {
   return [
-    "TRIGO Quality Services(R)",
+    "TRIGO Quality Services",
     job.employeeName,
     job.timestamp ? String(job.timestamp).split(" ")[0] : "",
     job.mission,
     job.partNumber,
     job.batch,
-    job.boxNumber,
+    "#" + job.boxNumber,
     job.qty
   ].join("|");
 }
