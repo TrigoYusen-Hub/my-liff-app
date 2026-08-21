@@ -3538,6 +3538,24 @@ function isRecheckMissionName_(mission) {
   return String(mission || "").toLowerCase().indexOf(RECHECK_MISSION_SUFFIX_.toLowerCase()) !== -1;
 }
 
+// ชื่อมิชชั่นมีคำนี้อยู่ (เช่น "LCBTH 26.0041(Rework)") = งานรีเวิร์ค
+// (ต้องตรงกับ reworkMissionSuffix ใน Config.js) -- ต่างจาก Recheck ตรงที่
+// ยังแตะ Inventory ปกติทุกอย่าง เปลี่ยนแค่ label หน้ากรอกยอดจาก "OK"/"NG"
+// เป็น "Rework OK"/"Rework NG"
+var REWORK_MISSION_SUFFIX_ = "(Rework)";
+
+function isReworkMissionName_(mission) {
+  return String(mission || "").toLowerCase().indexOf(REWORK_MISSION_SUFFIX_.toLowerCase()) !== -1;
+}
+
+function okLabelText_(mission) {
+  return isReworkMissionName_(mission) ? "Rework OK" : "OK";
+}
+
+function ngLabelText_(mission) {
+  return isReworkMissionName_(mission) ? "Rework NG" : "NG";
+}
+
 function applyDailyWorkScanOption_(opt) {
   dailyWorkState.mission = opt.mission;
   dailyWorkState.partNumber = opt.partNumber;
@@ -3660,11 +3678,11 @@ async function showDailyWorkManualEntryView() {
           <input id="dwManualLot" type="text" placeholder="ไม่บังคับกรอก" oninput="this.value = this.value.toUpperCase()">
         </div>
         <div class="qty-row">
-          <label>OK</label>
+          <label id="dwManualOkLabel">OK</label>
           <input id="dwManualOk" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkManualForm()">
         </div>
         <div class="qty-row">
-          <label>NG</label>
+          <label id="dwManualNgLabel">NG</label>
           <input id="dwManualNg" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkManualForm()">
         </div>
         ${timeRangeFieldsHtml_("dwManualStartInput", "dwManualEndInput")}
@@ -3688,6 +3706,11 @@ async function showDailyWorkManualEntryView() {
 function onDailyWorkManualMissionChange() {
   var mission = document.getElementById("dwManualMission").value;
   var partSelect = document.getElementById("dwManualPartNumber");
+
+  var okLabel = document.getElementById("dwManualOkLabel");
+  var ngLabel = document.getElementById("dwManualNgLabel");
+  if (okLabel) okLabel.textContent = okLabelText_(mission);
+  if (ngLabel) ngLabel.textContent = ngLabelText_(mission);
 
   if (!mission) {
     partSelect.innerHTML = '<option value="">เลือก Mission ก่อน</option>';
@@ -3864,10 +3887,10 @@ async function showDailyWorkQtyEntry() {
 
       ${stockBoxHtml}
 
-      <label class="qty-label-full">OK วันนี้ (ชิ้น)</label>
+      <label class="qty-label-full">${okLabelText_(dailyWorkState.mission)} วันนี้ (ชิ้น)</label>
       <input id="dailyWorkOkInput" class="qty-input-full" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkQtyForm_()">
 
-      <label class="qty-label-full">NG วันนี้ (ชิ้น)</label>
+      <label class="qty-label-full">${ngLabelText_(dailyWorkState.mission)} วันนี้ (ชิ้น)</label>
       <input id="dailyWorkNgInput" class="qty-input-full" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkQtyForm_()">
 
       <div id="defectSectionWrap" style="display:none">${renderDefectSectionHtml_(dailyWorkState.defects)}</div>
@@ -4000,11 +4023,11 @@ function showDailyWorkConfirm() {
 
       <section class="confirm-qty">
         <div class="confirm-qty-row">
-          <span>OK</span>
+          <span>${okLabelText_(dailyWorkState.mission)}</span>
           <span>${ok}</span>
         </div>
         <div class="confirm-qty-row">
-          <span>NG</span>
+          <span>${ngLabelText_(dailyWorkState.mission)}</span>
           <span>${ng}</span>
         </div>
         ${defectSummaryHtml}
@@ -4146,11 +4169,11 @@ function showDailyWorkSuccess_(data) {
 
       <section class="confirm-qty">
         <div class="confirm-qty-row">
-          <span>OK</span>
+          <span>${okLabelText_(data.mission)}</span>
           <span>${data.okEntered}</span>
         </div>
         <div class="confirm-qty-row">
-          <span>NG</span>
+          <span>${ngLabelText_(data.mission)}</span>
           <span>${data.ngEntered}</span>
         </div>
         ${remainingWorkRowHtml_(data.remainingAfter)}
