@@ -3712,6 +3712,12 @@ function onDailyWorkManualMissionChange() {
   if (okLabel) okLabel.textContent = okLabelText_(mission);
   if (ngLabel) ngLabel.textContent = ngLabelText_(mission);
 
+  // งาน Rework ไม่ต้องกด "รับงาน" มาก่อน -- ให้พิมพ์ Batch เองได้อิสระ
+  // (เหมือนช่องรับงาน "recv") ต่างจาก Batch ของมิชชั่นปกติที่ต้องเลือกจาก
+  // รายการที่มีอยู่จริงเท่านั้น (ต้องตรงกับ logDailyWork_ ฝั่ง backend ที่
+  // สร้างแถว Inventory ให้เองถ้า Batch ที่พิมพ์มายังไม่เคยมี)
+  BATCH_COMBOS_.dw.allowFree = isReworkMissionName_(mission);
+
   if (!mission) {
     partSelect.innerHTML = '<option value="">เลือก Mission ก่อน</option>';
     partSelect.disabled = true;
@@ -3737,6 +3743,7 @@ async function onDailyWorkManualPartChange_() {
   var partNumber = document.getElementById("dwManualPartNumber").value;
   var mission = document.getElementById("dwManualMission").value;
   var isRecheck = isRecheckMissionName_(mission);
+  var isRework = isReworkMissionName_(mission);
   var wrap = document.getElementById("defectSectionWrap");
 
   dwManualDefects_ = [];
@@ -3757,8 +3764,10 @@ async function onDailyWorkManualPartChange_() {
     if (wrap) wrap.innerHTML = renderDefectSectionHtml_(dwManualDefects_);
 
     // งาน Recheck ไม่ผูกกับ Inventory เลย เลือก Batch ไหนก็ได้ที่มีของ Part
-    // นี้ ไม่ต้องกรองด้วยยอดคงเหลือของมิชชั่นเดิม
-    if (isRecheck) {
+    // นี้ ไม่ต้องกรองด้วยยอดคงเหลือของมิชชั่นเดิม -- งาน Rework ก็เหมือนกัน
+    // (แค่โชว์ Batch ที่เคยพิมพ์ไปแล้วเป็นตัวเลือกลัด ไม่ได้กรองด้วย remaining
+    // เพราะ Rework ไม่มีเพดานยอดคงเหลือ ดู logDailyWork_ ฝั่ง backend)
+    if (isRecheck || isRework) {
       var recheckRes;
       try {
         recheckRes = await api("getBatchOptions", { partNumber: partNumber });
