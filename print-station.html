@@ -208,30 +208,33 @@
   }
 
   /* ----- Label ที่จะพิมพ์จริง (ซ่อนไว้ปกติ โชว์เฉพาะตอนสั่ง Print) -----
-     เครื่อง Zebra รุ่นใหม่: ม้วน 3 ช่องขนานในแถวเดียว ช่องละ 32mm x 25mm
-     (LANES=3) — ยังต้องหมุนเนื้อหา -90 องศาเหมือนเครื่องรุ่นเก่า (เดิม
-     LANES=1, 32x20mm) กรอบ virtual สลับเป็น 25mm x 32mm (สลับด้านจาก
-     label จริง 32x25mm ต่อช่อง) ก่อนหมุน เพื่อให้ bounding box หลังหมุนพอดี
-     กับตัว label จริง — จุดหมุนตั้งกึ่งกลางพอดี (ไม่มีการขยับชดเชยแบบเครื่อง
-     เก่าที่มี top/left offset เพิ่ม เพราะยังไม่เคยพิมพ์จริงกับเครื่องนี้ อาจ
-     ต้องขยับตามที่เห็นจากการพิมพ์จริง) */
+     สติ๊กเกอร์จริง (2026-08-21, เครื่องพิมพ์จริงที่ได้มา): 3 ช่องต่อแถว
+     ช่องละ 20mm x 32mm เว้นระยะห่างระหว่างช่อง 2mm (ไม่เว้นขอบนอกซ้าย/ขวา)
+     รวมความกว้างหน้ากระดาษ = 20*3 + 2*2 = 64mm — ไม่ต้องหมุนเนื้อหาเหมือน
+     เครื่องรุ่นก่อน เพราะช่องเป็นทรงสูงอยู่แล้ว (20 กว้าง x 32 สูง) พอดีกับ
+     เนื้อหาเรียงบนลงล่างตรงๆ ไม่ต้องมี virtual box สลับด้านก่อนหมุนอีกต่อไป
+     ไม่มีโลโก้ Trigo แล้ว (ลูกค้าไม่ต้องการ) เหลือแค่ QR กึ่งกลาง + ข้อความ
+     pass/ลำดับกล่องด้านล่าง — ตำแหน่ง mm ด้านล่างเป็นค่าประมาณจากขนาดจริง
+     ยังไม่เคยพิมพ์จริงกับช่องขนาดนี้ อาจต้องขยับเล็กน้อยตามที่เห็นจากการ
+     พิมพ์จริงอีกที */
   #printArea { display: none; }
 
   @media print {
     .app-shell { display: none !important; }
     #printArea { display: block; }
-    @page { size: 96mm 25mm; margin: 0; }
+    @page { size: 64mm 32mm; margin: 0; }
   }
 
   #labelRow {
     display: flex;
-    width: 96mm;
-    height: 25mm;
+    width: 64mm;
+    height: 32mm;
+    gap: 2mm;
   }
 
   .label-slot {
-    width: 32mm;
-    height: 25mm;
+    width: 20mm;
+    height: 32mm;
     position: relative;
     background: #fff;
     overflow: hidden;
@@ -239,42 +242,31 @@
 
   .label-content {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 25mm;
+    top: 0;
+    left: 0;
+    width: 20mm;
     height: 32mm;
-    transform: translate(-50%, -50%) rotate(-90deg);
   }
 
   .label-content canvas {
     position: absolute;
-    top: 1mm;
-    left: 3.5mm;
-    width: 16.5mm;
-    height: 16.5mm;
+    top: 2mm;
+    left: 2.5mm;
+    width: 15mm;
+    height: 15mm;
   }
 
   .label-content .corner {
     position: absolute;
-    top: 18mm;
+    top: 19mm;
     left: 0;
-    width: 25mm;
+    width: 20mm;
     text-align: center;
     font-family: Tahoma, sans-serif;
     font-size: 10px;
     font-weight: bold;
-    line-height: 1;
+    line-height: 1.3;
     white-space: nowrap;
-    transform: translateX(-1.5mm);
-  }
-
-  .label-content .full-logo {
-    position: absolute;
-    bottom: 5mm;
-    left: 50%;
-    width: 20mm;
-    height: auto;
-    transform: translateX(calc(-50% - 1mm));
   }
 </style>
 </head>
@@ -390,9 +382,9 @@
 
 <div id="printArea">
   <div id="labelRow">
-    <div class="label-slot" id="labelSlot0"><div class="label-content"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full-black-v2.png" alt=""></div></div>
-    <div class="label-slot" id="labelSlot1"><div class="label-content"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full-black-v2.png" alt=""></div></div>
-    <div class="label-slot" id="labelSlot2"><div class="label-content"><canvas></canvas><div class="corner"></div><img class="full-logo" src="trigo-logo-full-black-v2.png" alt=""></div></div>
+    <div class="label-slot" id="labelSlot0"><div class="label-content"><canvas></canvas><div class="corner"></div></div></div>
+    <div class="label-slot" id="labelSlot1"><div class="label-content"><canvas></canvas><div class="corner"></div></div></div>
+    <div class="label-slot" id="labelSlot2"><div class="label-content"><canvas></canvas><div class="corner"></div></div></div>
   </div>
 </div>
 
@@ -493,9 +485,8 @@ function buildQrPayload_(job) {
   ].join("|");
 }
 
-// เครื่อง Zebra รุ่นใหม่: 3 ช่องขนานในแถวเดียว ช่องละ 32x25mm — โลโก้เต็มอยู่
-// ใต้ QR แทนการทับตรงกลางแบบเดิม (ดู .full-logo ใน CSS/HTML) ไม่ต้องคำนวณ
-// วาดทับ canvas อีกต่อไป
+// เครื่องพิมพ์จริง (2026-08-21): 3 ช่องขนานในแถวเดียว ช่องละ 20x32mm ไม่มี
+// โลโก้ Trigo แล้ว (ดู CSS ด้านบน) เหลือแค่ QR + pass/ลำดับกล่อง
 var LANES = 3;
 
 function renderLabelSlot_(slotIndex, job) {
@@ -521,7 +512,9 @@ function renderLabelSlot_(slotIndex, job) {
       canvas.style.width = "15mm";
       canvas.style.height = "15mm";
 
-      corner.textContent = job.pass + "-" + job.boxNumber;
+      // "#" นำหน้าลำดับกล่อง (2026-08-21) -- ให้ตรงกับที่ QR payload เอง
+      // ใส่ "#" นำหน้าอยู่แล้ว (ดู buildQrPayload_)
+      corner.textContent = job.pass + " #" + job.boxNumber;
       resolve();
     });
   });
