@@ -3486,6 +3486,64 @@ function updateDefectSumStatus_(ngValue) {
   return false;
 }
 
+// มิชชั่น Rework ไม่กรอก OK/NG รวมตรง ๆ -- กรอกแยกเป็น OK/NG ต่อประเภท
+// defect แทน (เช่น "Rework Rust OK" / "Rust Rework ไม่ได้") แล้วยอด OK/NG
+// รวมค่อยบวกเอาจากตรงนี้ทีหลัง (ดู splitReworkOkNg_) ผู้ใช้กรอก "จำนวน
+// ทั้งหมด" เองเป็นตัวเช็คไขว้ (ต้องเท่ากับผลรวมทุกช่อง) -- ออกแบบร่วมกับ
+// ผู้ใช้ 2026-08-28 ใช้ class "defect-input" เดียวกับ breakdown ของ NG
+// ปกติเลย (data-defect เป็น "ชื่อ OK"/"ชื่อ NG" แทนที่จะเป็นแค่ "ชื่อ")
+// เพื่อให้ showDailyWorkConfirm อ่าน breakdown ได้แบบเดียวกันโดยไม่ต้องแก้
+function renderReworkDefectSectionHtml_(defects) {
+  if (!defects || defects.length === 0) return "";
+
+  var rows = defects.map(function(name) {
+    return '<div class="defect-field-row">' +
+        '<label>Rework ' + escapeHtml(name) + ' OK</label>' +
+        '<input type="number" inputmode="numeric" class="defect-input" data-defect="' + escapeHtml(name) + ' OK" placeholder="0" oninput="onDefectFieldInput_()">' +
+      '</div>' +
+      '<div class="defect-field-row">' +
+        '<label>' + escapeHtml(name) + ' Rework ไม่ได้</label>' +
+        '<input type="number" inputmode="numeric" class="defect-input" data-defect="' + escapeHtml(name) + ' NG" placeholder="0" oninput="onDefectFieldInput_()">' +
+      '</div>';
+  }).join("");
+
+  return '<div class="defect-section" id="defectSection">' +
+    '<p class="defect-section-label">แยกตามผล Rework</p>' +
+    rows +
+    '<p class="defect-sum-status" id="defectSumStatus"></p>' +
+  '</div>';
+}
+
+// breakdown เก็บ key แบบ "ชื่อ OK"/"ชื่อ NG" -- แยกกลับเป็นยอดรวม OK/NG
+// (ใช้แทนช่องกรอก OK/NG ตรง ๆ ของมิชชั่นปกติ)
+function splitReworkOkNg_(breakdown) {
+  var ok = 0, ng = 0;
+  Object.keys(breakdown || {}).forEach(function(key) {
+    var val = Number(breakdown[key] || 0);
+    if (/ OK$/.test(key)) ok += val;
+    else if (/ NG$/.test(key)) ng += val;
+  });
+  return { ok: ok, ng: ng };
+}
+
+// เทียบผลรวมทุกช่อง (ทั้ง OK และ NG ต่อประเภท) กับ "จำนวนทั้งหมด" ที่กรอกเอง
+function updateReworkSumStatus_(totalValue) {
+  var statusEl = document.getElementById("defectSumStatus");
+  if (!statusEl) return true;
+
+  var result = getDefectBreakdownFromInputs_();
+
+  if (result.sum === totalValue) {
+    statusEl.textContent = "ยอดรวม " + result.sum + " / " + totalValue + " ถูกต้อง";
+    statusEl.className = "defect-sum-status ok";
+    return true;
+  }
+
+  statusEl.textContent = "ยอดรวม " + result.sum + " / " + totalValue + " (ต้องเท่ากับจำนวนทั้งหมด)";
+  statusEl.className = "defect-sum-status bad";
+  return false;
+}
+
 // ช่องเวลาเริ่ม/จบงาน ไม่บังคับกรอก — ถ้ากรอกไว้ ตอนสร้างใบงานจะดึงไปเติม
 // เวลาให้อัตโนมัติ (ยังแก้/เพิ่มพนักงานเองตอนสร้างใบงานได้ปกติ)
 function timeRangeFieldsHtml_(startId, endId) {
@@ -3494,9 +3552,9 @@ function timeRangeFieldsHtml_(startId, endId) {
 }
 
 function onDefectFieldInput_() {
-  if (document.getElementById("dailyWorkNgInput")) {
+  if (document.getElementById("dailyWorkNgInput") || document.getElementById("dailyWorkTotalInput")) {
     updateDailyWorkQtyForm_();
-  } else if (document.getElementById("dwManualNg")) {
+  } else if (document.getElementById("dwManualNg") || document.getElementById("dwManualTotalInput")) {
     updateDailyWorkManualForm();
   }
 }
@@ -3677,13 +3735,19 @@ async function showDailyWorkManualEntryView() {
           <label>Lot No.</label>
           <input id="dwManualLot" type="text" placeholder="ไม่บังคับกรอก" oninput="this.value = this.value.toUpperCase()">
         </div>
-        <div class="qty-row">
-          <label id="dwManualOkLabel">OK</label>
-          <input id="dwManualOk" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkManualForm()">
+        <div id="dwManualOkNgWrap">
+          <div class="qty-row">
+            <label id="dwManualOkLabel">OK</label>
+            <input id="dwManualOk" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkManualForm()">
+          </div>
+          <div class="qty-row">
+            <label id="dwManualNgLabel">NG</label>
+            <input id="dwManualNg" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkManualForm()">
+          </div>
         </div>
-        <div class="qty-row">
-          <label id="dwManualNgLabel">NG</label>
-          <input id="dwManualNg" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkManualForm()">
+        <div id="dwManualTotalWrap" class="qty-row" style="display:none">
+          <label>จำนวนทั้งหมด</label>
+          <input id="dwManualTotalInput" type="number" inputmode="numeric" placeholder="ใส่จำนวนรวมทุกประเภท" oninput="updateDailyWorkManualForm()">
         </div>
         ${timeRangeFieldsHtml_("dwManualStartInput", "dwManualEndInput")}
       </section>
@@ -3711,6 +3775,15 @@ function onDailyWorkManualMissionChange() {
   var ngLabel = document.getElementById("dwManualNgLabel");
   if (okLabel) okLabel.textContent = okLabelText_(mission);
   if (ngLabel) ngLabel.textContent = ngLabelText_(mission);
+
+  // มิชชั่น Rework กรอกยอด OK/NG แยกตาม defect แทน (ดู
+  // renderReworkDefectSectionHtml_) -- สลับไปโชว์ช่อง "จำนวนทั้งหมด" ไว้เช็ค
+  // ไขว้กับผลรวมแทนช่อง OK/NG ตรง ๆ
+  var okNgWrap = document.getElementById("dwManualOkNgWrap");
+  var totalWrap = document.getElementById("dwManualTotalWrap");
+  var isReworkNow = isReworkMissionName_(mission);
+  if (okNgWrap) okNgWrap.style.display = isReworkNow ? "none" : "";
+  if (totalWrap) totalWrap.style.display = isReworkNow ? "" : "none";
 
   // งาน Rework ไม่ต้องกด "รับงาน" มาก่อน -- ให้พิมพ์ Batch เองได้อิสระ
   // (เหมือนช่องรับงาน "recv") ต่างจาก Batch ของมิชชั่นปกติที่ต้องเลือกจาก
@@ -3761,7 +3834,7 @@ async function onDailyWorkManualPartChange_() {
     } catch (e) {
       dwManualDefects_ = [];
     }
-    if (wrap) wrap.innerHTML = renderDefectSectionHtml_(dwManualDefects_);
+    if (wrap) wrap.innerHTML = isRework ? renderReworkDefectSectionHtml_(dwManualDefects_) : renderDefectSectionHtml_(dwManualDefects_);
 
     // งาน Recheck ไม่ผูกกับ Inventory เลย เลือก Batch ไหนก็ได้ที่มีของ Part
     // นี้ ไม่ต้องกรองด้วยยอดคงเหลือของมิชชั่นเดิม -- งาน Rework ก็เหมือนกัน
@@ -3802,21 +3875,31 @@ function updateDailyWorkManualForm() {
   var mission = document.getElementById("dwManualMission").value;
   var partNumber = document.getElementById("dwManualPartNumber").value;
   var batch = document.getElementById("dwManualBatch").value.trim();
-  var ok = Number(document.getElementById("dwManualOk").value || 0);
-  var ng = Number(document.getElementById("dwManualNg").value || 0);
   var nextBtn = document.getElementById("dwManualNextBtn");
-
   var wrap = document.getElementById("defectSectionWrap");
   var hasDefects = dwManualDefects_ && dwManualDefects_.length > 0;
-  var defectValid = true;
+  var isRework = isReworkMissionName_(mission);
+  var ok, ng, defectValid = true;
 
-  if (wrap) {
-    if (hasDefects && ng > 0) {
-      wrap.style.display = "block";
-      defectValid = updateDefectSumStatus_(ng);
-    } else {
-      wrap.style.display = "none";
-      defectValid = true;
+  if (isRework) {
+    // OK/NG มาจากผลรวมช่องแยกตาม defect เสมอ (ไม่มีช่อง OK/NG ตรง ๆ ให้กรอก)
+    var totalInput = document.getElementById("dwManualTotalInput");
+    var total = Number((totalInput && totalInput.value) || 0);
+    var split = splitReworkOkNg_(getDefectBreakdownFromInputs_().breakdown);
+    ok = split.ok; ng = split.ng;
+    if (wrap) wrap.style.display = hasDefects ? "block" : "none";
+    defectValid = hasDefects ? (total > 0 && updateReworkSumStatus_(total)) : false;
+  } else {
+    ok = Number(document.getElementById("dwManualOk").value || 0);
+    ng = Number(document.getElementById("dwManualNg").value || 0);
+    if (wrap) {
+      if (hasDefects && ng > 0) {
+        wrap.style.display = "block";
+        defectValid = updateDefectSumStatus_(ng);
+      } else {
+        wrap.style.display = "none";
+        defectValid = true;
+      }
     }
   }
 
@@ -3835,8 +3918,17 @@ function submitDailyWorkManualEntry() {
   var mission = document.getElementById("dwManualMission").value;
   var partNumber = document.getElementById("dwManualPartNumber").value;
   var batch = document.getElementById("dwManualBatch").value.trim();
-  var ok = Number(document.getElementById("dwManualOk").value || 0);
-  var ng = Number(document.getElementById("dwManualNg").value || 0);
+  var ok, ng;
+  if (isReworkMissionName_(mission)) {
+    // ยอด OK/NG มาจากผลรวมช่องแยกตาม defect (showDailyWorkConfirm จะอ่าน
+    // .defect-input จาก DOM เดิมนี้เองอีกทีตอนสร้างหน้ายืนยัน ไม่ต้องคัดลอก
+    // breakdown มาเก็บไว้ตรงนี้)
+    var split = splitReworkOkNg_(getDefectBreakdownFromInputs_().breakdown);
+    ok = split.ok; ng = split.ng;
+  } else {
+    ok = Number(document.getElementById("dwManualOk").value || 0);
+    ng = Number(document.getElementById("dwManualNg").value || 0);
+  }
 
   var part = partOptionsCache_.find(function(opt) {
     return (opt.mission || "") === mission && (opt.partNumber || "") === partNumber;
@@ -3880,6 +3972,7 @@ async function showDailyWorkQtyEntry() {
   }
 
   var isRecheck = !!dailyWorkState.isRecheck;
+  var isRework = isReworkMissionName_(dailyWorkState.mission);
 
   var stockBoxHtml = isRecheck
     ? '<div class="stock-box"><div class="stock-box-label">งานตรวจซ้ำ (Recheck)</div><div class="stock-box-value" style="font-size:2.2vh;">ไม่ผูกกับยอดคงเหลือ</div></div>'
@@ -3887,6 +3980,19 @@ async function showDailyWorkQtyEntry() {
         '<div class="stock-box-label">เหลือต้องทำ (จากรับเข้า ' + dailyWorkState.receivedTotal + ')</div>' +
         '<div class="stock-box-value">' + dailyWorkState.remaining + ' Pcs</div>' +
       '</div>';
+
+  // มิชชั่น Rework กรอกยอด OK/NG แยกตาม defect แทน (ดู
+  // renderReworkDefectSectionHtml_) -- ช่อง OK/NG ตรง ๆ ไม่มีความหมายแล้ว
+  // สลับไปโชว์ "จำนวนทั้งหมด" ไว้เช็คไขว้กับผลรวมแทน
+  var okNgHtml = isRework ? "" :
+    '<label class="qty-label-full">' + okLabelText_(dailyWorkState.mission) + ' วันนี้ (ชิ้น)</label>' +
+    '<input id="dailyWorkOkInput" class="qty-input-full" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkQtyForm_()">' +
+    '<label class="qty-label-full">' + ngLabelText_(dailyWorkState.mission) + ' วันนี้ (ชิ้น)</label>' +
+    '<input id="dailyWorkNgInput" class="qty-input-full" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkQtyForm_()">';
+  var totalHtml = isRework ?
+    '<label class="qty-label-full">จำนวนทั้งหมด</label>' +
+    '<input id="dailyWorkTotalInput" class="qty-input-full" type="number" inputmode="numeric" placeholder="ใส่จำนวนรวมทุกประเภท" oninput="updateDailyWorkQtyForm_()">'
+    : "";
 
   document.getElementById("receiveContent").innerHTML = `
     <div class="result-view">
@@ -3896,23 +4002,20 @@ async function showDailyWorkQtyEntry() {
 
       ${stockBoxHtml}
 
-      <label class="qty-label-full">${okLabelText_(dailyWorkState.mission)} วันนี้ (ชิ้น)</label>
-      <input id="dailyWorkOkInput" class="qty-input-full" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkQtyForm_()">
+      ${okNgHtml}
+      ${totalHtml}
 
-      <label class="qty-label-full">${ngLabelText_(dailyWorkState.mission)} วันนี้ (ชิ้น)</label>
-      <input id="dailyWorkNgInput" class="qty-input-full" type="number" inputmode="numeric" placeholder="ใส่จำนวน" oninput="updateDailyWorkQtyForm_()">
-
-      <div id="defectSectionWrap" style="display:none">${renderDefectSectionHtml_(dailyWorkState.defects)}</div>
+      <div id="defectSectionWrap" style="display:none">${isRework ? renderReworkDefectSectionHtml_(dailyWorkState.defects) : renderDefectSectionHtml_(dailyWorkState.defects)}</div>
 
       ${timeRangeFieldsHtml_("dailyWorkStartInput", "dailyWorkEndInput")}
 
-      ${isRecheck ? "" : '<div class="warn-box">OK + NG ห้ามเกินยอดคงเหลือ</div>'}
+      ${(isRecheck || isRework) ? "" : '<div class="warn-box">OK + NG ห้ามเกินยอดคงเหลือ</div>'}
 
       <div class="action-row">
         <button class="action-btn rescan-btn" type="button" onclick="goBackStep_()">
           <span>ย้อนกลับ</span>
         </button>
-        <button id="dailyWorkNextBtn" class="action-btn confirm-btn" type="button" onclick="goto_(showDailyWorkConfirm)" disabled>
+        <button id="dailyWorkNextBtn" class="action-btn confirm-btn" type="button" onclick="advanceDailyWorkQtyToConfirm_()" disabled>
           ${downloadIcon()}
           <span>ถัดไป</span>
         </button>
@@ -3921,9 +4024,28 @@ async function showDailyWorkQtyEntry() {
   `;
 }
 
+// ปกติหน้ายืนยัน (showDailyWorkConfirm) อ่าน OK/NG จาก dailyWorkOkInput/
+// dailyWorkNgInput ตรง ๆ เอง -- แต่มิชชั่น Rework ไม่มีช่องนั้นให้อ่าน ต้อง
+// คำนวณจาก breakdown แล้วเซ็ตลง dailyWorkState ก่อนไปหน้ายืนยัน
+function advanceDailyWorkQtyToConfirm_() {
+  if (isReworkMissionName_(dailyWorkState.mission)) {
+    var split = splitReworkOkNg_(getDefectBreakdownFromInputs_().breakdown);
+    dailyWorkState.ok = split.ok;
+    dailyWorkState.ng = split.ng;
+  }
+  goto_(showDailyWorkConfirm);
+}
+
 function updateDailyWorkQtyForm_() {
-  var ok = Number(document.getElementById("dailyWorkOkInput").value || 0);
-  var ng = Number(document.getElementById("dailyWorkNgInput").value || 0);
+  var isRework = isReworkMissionName_(dailyWorkState.mission);
+  var ok, ng;
+  if (isRework) {
+    var split = splitReworkOkNg_(getDefectBreakdownFromInputs_().breakdown);
+    ok = split.ok; ng = split.ng;
+  } else {
+    ok = Number(document.getElementById("dailyWorkOkInput").value || 0);
+    ng = Number(document.getElementById("dailyWorkNgInput").value || 0);
+  }
   var btn = document.getElementById("dailyWorkNextBtn");
 
   var wrap = document.getElementById("defectSectionWrap");
@@ -3931,7 +4053,14 @@ function updateDailyWorkQtyForm_() {
   var defectValid = true;
 
   if (wrap) {
-    if (hasDefects && ng > 0) {
+    if (isRework && hasDefects) {
+      // OK ก็มาจากช่องแยกตาม defect เหมือนกัน เลยโชว์เสมอ ไม่ต้องรอ NG > 0
+      // เหมือนมิชชั่นปกติ
+      wrap.style.display = "block";
+      var totalInput = document.getElementById("dailyWorkTotalInput");
+      var total = Number((totalInput && totalInput.value) || 0);
+      defectValid = total > 0 && updateReworkSumStatus_(total);
+    } else if (hasDefects && ng > 0) {
       wrap.style.display = "block";
       defectValid = updateDefectSumStatus_(ng);
     } else {
@@ -3940,7 +4069,9 @@ function updateDailyWorkQtyForm_() {
     }
   }
 
-  var withinRemaining = dailyWorkState.isRecheck || (ok + ng <= dailyWorkState.remaining);
+  // Rework ไม่มีเพดาน "ยอดคงเหลือ" เหมือน Recheck (ดู logDailyWork_ ฝั่ง
+  // backend -- ไม่มีการตั้งเป้าล่วงหน้า ลงกี่ครั้งก็ได้)
+  var withinRemaining = dailyWorkState.isRecheck || isRework || (ok + ng <= dailyWorkState.remaining);
   var valid = ok >= 0 && ng >= 0 && ok + ng > 0 && withinRemaining && defectValid;
 
   if (valid) {
@@ -3983,9 +4114,10 @@ function showDailyWorkConfirm() {
     dailyWorkState.defectBreakdown = getDefectBreakdownFromInputs_().breakdown;
   }
 
+  var isReworkConfirm = isReworkMissionName_(dailyWorkState.mission);
   var defectBreakdown = dailyWorkState.defectBreakdown || {};
   var defectSummaryHtml = Object.keys(defectBreakdown).length > 0
-    ? '<div class="confirm-qty-row"><span>แยกประเภท NG</span><span>' +
+    ? '<div class="confirm-qty-row"><span>' + (isReworkConfirm ? "แยกตามผล Rework" : "แยกประเภท NG") + '</span><span>' +
         Object.keys(defectBreakdown).map(function(k) { return escapeHtml(k) + " " + defectBreakdown[k]; }).join(", ") +
       '</span></div>'
     : "";
@@ -3996,7 +4128,7 @@ function showDailyWorkConfirm() {
       '</span></div>'
     : "";
 
-  var remainingRowHtml = dailyWorkState.isRecheck ? "" : remainingWorkRowHtml_(dailyWorkState.remaining - ok - ng);
+  var remainingRowHtml = (dailyWorkState.isRecheck || isReworkConfirm) ? "" : remainingWorkRowHtml_(dailyWorkState.remaining - ok - ng);
 
   document.getElementById("receiveContent").innerHTML = `
     <div class="confirm-view">
