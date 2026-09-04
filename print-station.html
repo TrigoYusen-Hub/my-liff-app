@@ -208,65 +208,70 @@
   }
 
   /* ----- Label ที่จะพิมพ์จริง (ซ่อนไว้ปกติ โชว์เฉพาะตอนสั่ง Print) -----
-     สติ๊กเกอร์จริง (2026-08-21, เครื่องพิมพ์จริงที่ได้มา): 3 ช่องต่อแถว
-     ช่องละ 20mm x 32mm เว้นระยะห่างระหว่างช่อง 2mm (ไม่เว้นขอบนอกซ้าย/ขวา)
-     รวมความกว้างหน้ากระดาษ = 20*3 + 2*2 = 64mm — ไม่ต้องหมุนเนื้อหาเหมือน
-     เครื่องรุ่นก่อน เพราะช่องเป็นทรงสูงอยู่แล้ว (20 กว้าง x 32 สูง) พอดีกับ
-     เนื้อหาเรียงบนลงล่างตรงๆ ไม่ต้องมี virtual box สลับด้านก่อนหมุนอีกต่อไป
-     ไม่มีโลโก้ Trigo แล้ว (ลูกค้าไม่ต้องการ) เหลือแค่ QR กึ่งกลาง + ข้อความ
-     pass/ลำดับกล่องด้านล่าง — ตำแหน่ง mm ด้านล่างเป็นค่าประมาณจากขนาดจริง
-     ยังไม่เคยพิมพ์จริงกับช่องขนาดนี้ อาจต้องขยับเล็กน้อยตามที่เห็นจากการ
-     พิมพ์จริงอีกที */
+     สติ๊กเกอร์จริง (2026-09-04, วัดจากม้วนจริงที่ได้มา -- ค่าก่อนหน้านี้
+     (20x32mm ต่อช่อง) ผิด ยังไม่เคยวัดของจริงตอนนั้น): 3 ช่องต่อแถว ช่องละ
+     30mm กว้าง x 20mm สูง (แนวนอน ไม่ใช่แนวตั้งเหมือนที่เคยคิด) เว้นระหว่าง
+     ช่อง 2mm เว้นขอบนอกซ้าย/ขวา 1mm ต่อข้าง รวมความกว้างหน้ากระดาษ =
+     30*3 + 2*2 + 1*2 = 96mm สูง 20mm ทั้งแถว — QR วางชิดซ้าย ข้อความ
+     pass/ลำดับกล่องอยู่ขวา (คนละแบบกับตอน 20x32mm ที่วาง QR บนข้อความล่าง
+     เพราะตอนนี้ช่องเป็นทรงกว้างแทนที่จะเป็นทรงสูง) ตำแหน่ง mm ยังเป็นค่า
+     ประมาณจากขนาดจริงรอบแรก อาจต้องขยับเล็กน้อยตามที่เห็นจากการพิมพ์จริง */
   #printArea { display: none; }
 
   @media print {
     .app-shell { display: none !important; }
     #printArea { display: block; }
-    @page { size: 64mm 32mm; margin: 0; }
+    @page { size: 96mm 20mm; margin: 0; }
   }
 
   #labelRow {
     display: flex;
-    width: 64mm;
-    height: 32mm;
+    width: 96mm;
+    height: 20mm;
     gap: 2mm;
+    padding: 0 1mm;
+    box-sizing: border-box;
   }
 
   .label-slot {
-    width: 20mm;
-    height: 32mm;
+    width: 30mm;
+    height: 20mm;
     position: relative;
     background: #fff;
     overflow: hidden;
+    flex: 0 0 30mm;
   }
 
   .label-content {
     position: absolute;
     top: 0;
     left: 0;
-    width: 20mm;
-    height: 32mm;
+    width: 30mm;
+    height: 20mm;
   }
 
   .label-content canvas {
     position: absolute;
-    top: 2mm;
-    left: 2.5mm;
+    top: 2.5mm;
+    left: 2mm;
     width: 15mm;
     height: 15mm;
   }
 
   .label-content .corner {
     position: absolute;
-    top: 19mm;
-    left: 0;
-    width: 20mm;
+    top: 0;
+    left: 18mm;
+    width: 10mm;
+    height: 20mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     font-family: Tahoma, sans-serif;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: bold;
-    line-height: 1.3;
-    white-space: nowrap;
+    line-height: 1.25;
   }
 </style>
 </head>
