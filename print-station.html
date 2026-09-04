@@ -83,6 +83,7 @@
   .sidebar-controls button { width: 100%; padding: 15px; }
   .btn-start { background: var(--green); color: #fff; }
   .btn-stop { background: var(--red); color: #fff; }
+  .btn-force { background: var(--amber); color: #fff; margin-top: 10px; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .sidebar-spacer { flex: 1; min-height: 20px; }
@@ -296,6 +297,7 @@
     <div class="sidebar-controls">
       <button class="btn-start" id="startBtn" onclick="startPolling_()">เริ่มทำงาน</button>
       <button class="btn-stop" id="stopBtn" onclick="stopPolling_()" disabled>หยุด</button>
+      <button class="btn-force" id="forceBtn" onclick="forcePrintRemainder_()" style="display:none"></button>
     </div>
 
     <div class="sidebar-spacer"></div>
@@ -563,6 +565,11 @@ function processJobBatch_(jobs) {
     });
 }
 
+// กันสิ้นเปลืองสติ๊กเกอร์ (2026-09-04): แต่ละแถวบนม้วนมี 3 ช่อง พิมพ์ตอนคิว
+// ไม่ครบ 3 ใบ = เสียช่องว่างไปฟรี ๆ เลยรอสะสมจนครบ "แถวเต็ม" ก่อนค่อยพิมพ์
+// อัตโนมัติ (ตัดเป็นชุดละ LANES พิมพ์ไปก่อนได้เลยถ้าคิวมีมากกว่า 1 แถว)
+// เศษที่เหลือไม่ครบ 3 ไม่พิมพ์เอง รอจนกว่าจะมีงานมาเติมจนครบ หรือกดปุ่ม
+// "พิมพ์เศษที่เหลือตอนนี้" เอง (เช่น กล่องสุดท้ายของวัน ไม่ต้องรอข้ามวัน)
 function pollOnce_() {
   if (isProcessing_) return;
   isProcessing_ = true;
@@ -572,23 +579,65 @@ function pollOnce_() {
       var jobs = (res && res.ok && res.jobs) || [];
       setQueueCount_(jobs.length);
 
-      if (jobs.length === 0) {
-        setStatus_("ok", "พร้อมทำงาน — รอคิวพิมพ์...");
+      var fullBatchCount = Math.floor(jobs.length / LANES);
+      var remainder = jobs.length % LANES;
+      updateForceButton_(remainder);
+
+      if (fullBatchCount === 0) {
+        setStatus_(
+          jobs.length === 0 ? "ok" : "busy",
+          jobs.length === 0
+            ? "พร้อมทำงาน — รอคิวพิมพ์..."
+            : "รอคิวให้ครบแถว (" + jobs.length + "/" + LANES + ") หรือกด \"พิมพ์เศษที่เหลือตอนนี้\""
+        );
         return Promise.resolve();
       }
 
-      setStatus_("busy", "กำลังพิมพ์ " + jobs.length + " ใบ...");
+      var toPrint = jobs.slice(0, fullBatchCount * LANES);
+      setStatus_("busy", "กำลังพิมพ์ " + toPrint.length + " ใบ...");
 
-      // แบ่งเป็นชุดละ 3 ตามช่องบนม้วน พิมพ์ทีละชุดตามลำดับ กันเครื่องพิมพ์
-      // ชนงานกัน — ชุดสุดท้ายอาจมีไม่ครบ 3 ก็พิมพ์เท่าที่มีเลย
       var batches = [];
-      for (var i = 0; i < jobs.length; i += LANES) {
-        batches.push(jobs.slice(i, i + LANES));
+      for (var i = 0; i < toPrint.length; i += LANES) {
+        batches.push(toPrint.slice(i, i + LANES));
       }
 
       return batches.reduce(function(chain, batch) {
         return chain.then(function() { return processJobBatch_(batch); });
       }, Promise.resolve());
+    })
+    .catch(function(err) {
+      setStatus_("err", "เชื่อมต่อไม่ได้: " + String(err && err.message ? err.message : err));
+    })
+    .finally(function() {
+      isProcessing_ = false;
+    });
+}
+
+function updateForceButton_(remainder) {
+  var btn = document.getElementById("forceBtn");
+  if (!btn) return;
+  if (remainder > 0) {
+    btn.style.display = "";
+    btn.textContent = "พิมพ์เศษที่เหลือตอนนี้ (" + remainder + ")";
+  } else {
+    btn.style.display = "none";
+  }
+}
+
+// ปุ่มกดเอง (กล่องสุดท้ายของวัน ไม่ต้องรอครบแถว) -- พิมพ์เศษที่ค้างอยู่ตอนนี้
+// ทันที ต่อให้ไม่ครบ 3 ก็ยอมเสียช่องที่เหลือว่างไป (ผู้ใช้ตัดสินใจเอง)
+function forcePrintRemainder_() {
+  if (isProcessing_) return;
+  isProcessing_ = true;
+
+  api_("getPendingPrintJobs", {})
+    .then(function(res) {
+      var jobs = (res && res.ok && res.jobs) || [];
+      if (jobs.length === 0) return Promise.resolve();
+
+      var batch = jobs.slice(0, LANES);
+      setStatus_("busy", "กำลังพิมพ์ " + batch.length + " ใบ (เศษที่เหลือ)...");
+      return processJobBatch_(batch);
     })
     .catch(function(err) {
       setStatus_("err", "เชื่อมต่อไม่ได้: " + String(err && err.message ? err.message : err));
