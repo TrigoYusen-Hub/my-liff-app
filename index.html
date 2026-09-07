@@ -3501,13 +3501,28 @@ function updateDefectSumStatus_(ngValue) {
 // key ของ breakdown ที่เก็บ (data-defect) ต้องตรงกับ convention ที่ Report.js
 // (ฝั่งสร้าง Mission Traceability Sheet) ใช้อยู่แล้วตั้งแต่ก่อนหน้านี้ --
 // "Rework X" = ยอดซ่อมสำเร็จ (ไปรวมที่คอลัมน์ N), "Scrap X" = ยอดซ่อมไม่
-// สำเร็จ (ไปรวมที่คอลัมน์ O) ช่อง Defect X ของ Traceability Sheet เอาสอง
-// อันนี้มารวมกันเป็นยอดรวมทั้งหมดที่เจอ (ดู defectColumnValue_ ฝั่ง
-// Report.js) -- แก้ 2026-09-07 หลังพบว่าตอนแรกใช้ key "ชื่อ OK"/"ชื่อ NG"
-// ซึ่งไม่ตรงกับที่ Report.js รออ่านอยู่ เลยขึ้น 0 ทั้งคอลัมน์ Rework และ
-// Defect ที่ควรเป็นยอดรวม
+// สำเร็จ (นับเป็น NG ปกติ ไปรวมที่คอลัมน์ G เหมือน defect เฉย ๆ -- ไม่ใช่
+// คอลัมน์ O, ดูคำอธิบาย O ใน Report.js) ช่อง Defect X ของ Traceability Sheet
+// เอา Rework X + Scrap X มารวมกันเป็นยอดรวมทั้งหมดที่เจอ (ดู
+// buildDefectColumnPlan_ ฝั่ง Report.js) -- แก้ 2026-09-07 หลังพบว่าตอนแรกใช้
+// key "ชื่อ OK"/"ชื่อ NG" ซึ่งไม่ตรงกับที่ Report.js รออ่านอยู่ เลยขึ้น 0 ทั้ง
+// คอลัมน์ Rework และ Defect ที่ควรเป็นยอดรวม
 var REWORK_DEFECT_PREFIX_ = "Rework ";
 var SCRAP_DEFECT_PREFIX_ = "Scrap ";
+
+// มิชชั่นไหนก็ได้ (ไม่ต้องชื่อลงท้าย "(Rework)") ที่ Part Master มี defect
+// ขึ้นต้น "Rework " แม้แต่ตัวเดียว = ต้องโชว์ช่องกรอกแบบแยก OK/NG ต่อ defect
+// (แก้ 2026-09-07 ตามที่ผู้ใช้ขอสำหรับมิชชั่น 60: อยากได้ breakdown แบบเดียว
+// กับ 41(Rework) แต่ไม่อยากแยกเป็นมิชชั่นใหม่ เพราะ 60 ยังเป็น workflow เดียว
+// รับงาน/ตัดสต็อกปกติ ไม่ข้ามขั้นตอนแบบ 41 -- เลยแยก 2 เรื่องออกจากกัน:
+// isReworkMissionName_ (ชื่อมิชชั่น) ยังคุมเฉพาะพฤติกรรมพิเศษของ 41 เท่านั้น
+// (ข้ามรับงาน/ไม่มีเพดาน remaining) ส่วน hasFixableDefects_ (Part Master)
+// คุมแค่ว่าจะโชว์ UI แบบไหน ไม่เกี่ยวกับชื่อมิชชั่นเลย)
+function hasFixableDefects_(defects) {
+  return (defects || []).some(function(name) {
+    return String(name || "").indexOf(REWORK_DEFECT_PREFIX_) === 0;
+  });
+}
 
 function renderReworkDefectSectionHtml_(defects) {
   if (!defects || defects.length === 0) return "";
@@ -3860,7 +3875,7 @@ async function onDailyWorkManualPartChange_() {
     } catch (e) {
       dwManualDefects_ = [];
     }
-    if (wrap) wrap.innerHTML = isRework ? renderReworkDefectSectionHtml_(dwManualDefects_) : renderDefectSectionHtml_(dwManualDefects_);
+    if (wrap) wrap.innerHTML = (isRework || hasFixableDefects_(dwManualDefects_)) ? renderReworkDefectSectionHtml_(dwManualDefects_) : renderDefectSectionHtml_(dwManualDefects_);
 
     // งาน Recheck ไม่ผูกกับ Inventory เลย เลือก Batch ไหนก็ได้ที่มีของ Part
     // นี้ ไม่ต้องกรองด้วยยอดคงเหลือของมิชชั่นเดิม -- งาน Rework ก็เหมือนกัน
@@ -4035,7 +4050,7 @@ async function showDailyWorkQtyEntry() {
       ${okNgHtml}
       ${totalHtml}
 
-      <div id="defectSectionWrap" style="display:none">${isRework ? renderReworkDefectSectionHtml_(dailyWorkState.defects) : renderDefectSectionHtml_(dailyWorkState.defects)}</div>
+      <div id="defectSectionWrap" style="display:none">${(isRework || hasFixableDefects_(dailyWorkState.defects)) ? renderReworkDefectSectionHtml_(dailyWorkState.defects) : renderDefectSectionHtml_(dailyWorkState.defects)}</div>
 
       <label class="qty-label-full">Lot No. <span style="color:#c0392b;">*</span></label>
       <input id="dailyWorkLotInput" class="qty-input-full" type="text" placeholder="ถ้าไม่ทราบ Lot ให้พิมพ์ N/A"
