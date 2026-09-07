@@ -3732,8 +3732,8 @@ async function showDailyWorkManualEntryView() {
           ${batchComboFieldHtml_("dw", "เลือก Part ก่อน แล้วพิมพ์เลข Batch")}
         </div>
         <div class="qty-row">
-          <label>Lot No.</label>
-          <input id="dwManualLot" type="text" placeholder="ไม่บังคับกรอก" oninput="this.value = this.value.toUpperCase()">
+          <label>Lot No. <span style="color:#c0392b;">*</span></label>
+          <input id="dwManualLot" type="text" placeholder="ถ้าไม่ทราบ Lot ให้พิมพ์ N/A" oninput="this.value = this.value.toUpperCase(); updateDailyWorkManualForm()">
         </div>
         <div id="dwManualOkNgWrap">
           <div class="qty-row">
@@ -3903,7 +3903,11 @@ function updateDailyWorkManualForm() {
     }
   }
 
-  var valid = mission && partNumber && batchComboIsValid_("dw") && ok >= 0 && ng >= 0 && (ok + ng) > 0 && defectValid;
+  // Lot No. บังคับกรอกทุกงาน (2026-09-07) -- ถ้าไม่ทราบ Lot ให้พิมพ์ N/A เอง
+  // (ดู placeholder ในช่องกรอก) กันไม่ให้ข้ามไปเฉย ๆ โดยไม่ได้ตั้งใจ
+  var lotValid = document.getElementById("dwManualLot").value.trim().length > 0;
+
+  var valid = mission && partNumber && batchComboIsValid_("dw") && ok >= 0 && ng >= 0 && (ok + ng) > 0 && defectValid && lotValid;
 
   if (valid) {
     nextBtn.disabled = false;
@@ -4007,6 +4011,11 @@ async function showDailyWorkQtyEntry() {
 
       <div id="defectSectionWrap" style="display:none">${isRework ? renderReworkDefectSectionHtml_(dailyWorkState.defects) : renderDefectSectionHtml_(dailyWorkState.defects)}</div>
 
+      <label class="qty-label-full">Lot No. <span style="color:#c0392b;">*</span></label>
+      <input id="dailyWorkLotInput" class="qty-input-full" type="text" placeholder="ถ้าไม่ทราบ Lot ให้พิมพ์ N/A"
+        value="${escapeHtml(dailyWorkState.lotCode || "")}"
+        oninput="this.value = this.value.toUpperCase(); updateDailyWorkQtyForm_()">
+
       ${timeRangeFieldsHtml_("dailyWorkStartInput", "dailyWorkEndInput")}
 
       ${(isRecheck || isRework) ? "" : '<div class="warn-box">OK + NG ห้ามเกินยอดคงเหลือ</div>'}
@@ -4072,7 +4081,12 @@ function updateDailyWorkQtyForm_() {
   // Rework ไม่มีเพดาน "ยอดคงเหลือ" เหมือน Recheck (ดู logDailyWork_ ฝั่ง
   // backend -- ไม่มีการตั้งเป้าล่วงหน้า ลงกี่ครั้งก็ได้)
   var withinRemaining = dailyWorkState.isRecheck || isRework || (ok + ng <= dailyWorkState.remaining);
-  var valid = ok >= 0 && ng >= 0 && ok + ng > 0 && withinRemaining && defectValid;
+
+  // Lot No. บังคับกรอกทุกงาน (2026-09-07) -- ถ้าไม่ทราบ Lot ให้พิมพ์ N/A เอง
+  var lotInput = document.getElementById("dailyWorkLotInput");
+  var lotValid = !!(lotInput && lotInput.value.trim().length > 0);
+
+  var valid = ok >= 0 && ng >= 0 && ok + ng > 0 && withinRemaining && defectValid && lotValid;
 
   if (valid) {
     btn.disabled = false;
@@ -4108,6 +4122,12 @@ function showDailyWorkConfirm() {
   var endInput = document.getElementById("dailyWorkEndInput") || document.getElementById("dwManualEndInput");
   if (startInput) dailyWorkState.startTime = startInput.value || "";
   if (endInput) dailyWorkState.endTime = endInput.value || "";
+
+  // dwManualLot ฝั่งกรอกเองเซ็ต dailyWorkState.lotCode ไว้แล้วตอนกด "ถัดไป"
+  // (submitDailyWorkManualEntry) -- ฝั่งสแกนอ่านจาก dailyWorkLotInput ตรงนี้
+  // แทน (ช่องนี้ไม่มีในฝั่งกรอกเองแล้ว ถูกลบไปตอนเข้าหน้ายืนยัน)
+  var lotInput = document.getElementById("dailyWorkLotInput");
+  if (lotInput) dailyWorkState.lotCode = lotInput.value.trim();
 
   var defectInputs = document.querySelectorAll(".defect-input");
   if (defectInputs.length > 0) {
