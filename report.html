@@ -1981,6 +1981,12 @@ function showHomeChoice_() {
           chevronIcon() +
         '</button>'
         : '') +
+      (showManualPresenceCreate ?
+        '<button type="button" class="home-menu-card" onclick="goFromHome_(showWaitForWorkDatePicker_)">' +
+          '<span class="home-menu-card-title">บันทึกรองาน</span>' +
+          chevronIcon() +
+        '</button>'
+        : '') +
     '</div>' +
     '<footer class="home-footer">' +
       '<div class="footer-brand">TRIGO REPORT</div>' +
@@ -2521,6 +2527,151 @@ function showPresenceSuccessView_(data) {
 function resetPresenceAndGoto_() {
   presenceState = { dateStr: "", dateLabel: "", employees: [] };
   goFromHome_(showPresenceDatePicker_);
+}
+
+// "รองาน" (พนักงานว่างงานเพราะไม่มีงานเข้า) -- บันทึกเป็นข้อความอิสระในแท็บ
+// Mission_Time_Sheet ของใบรายงานมิชชั่นนั้น (ดู logWaitForWork_ ฝั่ง
+// Report.js) ไม่ผูกรายคน เป็นภาพรวมทั้งทีม เลือกได้เฉพาะมิชชั่น/วันที่ที่มี
+// การลงยอดงานแล้วอย่างน้อย 1 ครั้ง (ต้องมีไฟล์ใบรายงานอยู่ก่อน) ใช้รายการ
+// มิชชั่นจาก getDashboardDailyWork ชุดเดียวกับหน้า "ตรวจสอบ/แก้ไขใบงาน" เลย
+// เพราะมิชชั่นที่ขึ้นในนี้ค้ำประกันอยู่แล้วว่ามีไฟล์ใบรายงานจริง (ออกแบบร่วมกับ
+// ผู้ใช้ 2026-09-07: Admin/Engineer เท่านั้น, ครั้งเดียวลงได้หลายช่วงเวลา)
+var waitForWorkState_ = { dateStr: "", dateLabel: "", mission: "" };
+
+function showWaitForWorkDatePicker_() {
+  setPageTitle_("บันทึกรองาน");
+
+  var today = new Date();
+  var yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  var dayBefore = new Date(today);
+  dayBefore.setDate(today.getDate() - 2);
+
+  var options = [
+    { d: today, tag: "วันนี้" },
+    { d: yesterday, tag: "เมื่อวาน" },
+    { d: dayBefore, tag: "เมื่อวานซืน" }
+  ];
+
+  renderPicker_({
+    context: [],
+    heading: "เลือกวันที่",
+    showSearch: false,
+    items: options.map(function(o) {
+      return { title: formatDateLabel_(o.d, o.tag), value: formatDateForApi_(o.d) };
+    }),
+    onSelect: function(item) {
+      waitForWorkState_.dateStr = item.value;
+      waitForWorkState_.dateLabel = item.title;
+      goto_(showWaitForWorkMissionList_);
+    }
+  });
+}
+
+async function showWaitForWorkMissionList_() {
+  setPageTitle_("บันทึกรองาน");
+  document.getElementById("content").innerHTML = '<div class="picker-page"><p class="picker-context">กำลังโหลด...</p></div>';
+
+  var res = await api("getDashboardDailyWork", { dateStr: waitForWorkState_.dateStr }).catch(function() { return { ok: false }; });
+  var missions = (res && res.ok && res.missions) || [];
+
+  if (missions.length === 0) {
+    document.getElementById("content").innerHTML =
+      '<div class="picker-page">' +
+        '<p class="picker-context">วันที่ : ' + escapeHtml(waitForWorkState_.dateLabel) + '</p>' +
+        '<div class="dash-empty-text">ยังไม่มีข้อมูลยอดงานรายวันในวันที่นี้ -- ต้องมีการลงยอดงานอย่างน้อย 1 ครั้งก่อนถึงจะมีใบรายงานให้บันทึกรองานได้</div>' +
+      '</div>';
+    return;
+  }
+
+  renderPicker_({
+    context: [{ label: "วันที่", value: waitForWorkState_.dateLabel }],
+    heading: "เลือก Mission",
+    showSearch: missions.length > 6,
+    searchPlaceholder: "ค้นหา Mission",
+    items: missions.map(function(m) {
+      return { title: m.mission, value: m.mission };
+    }),
+    onSelect: function(item) {
+      waitForWorkState_.mission = item.value;
+      goto_(showWaitForWorkTimeEntry_);
+    }
+  });
+}
+
+function showWaitForWorkTimeEntry_() {
+  setPageTitle_("บันทึกรองาน");
+
+  document.getElementById("content").innerHTML =
+    '<div class="result-view">' +
+      '<p class="picker-context">วันที่ : ' + escapeHtml(waitForWorkState_.dateLabel) + '</p>' +
+      '<p class="picker-context">Mission : ' + escapeHtml(waitForWorkState_.mission) + '</p>' +
+      '<div class="emp-time-field"><label>เริ่มรองาน</label><input type="time" id="wfwStartInput" value="08:00" oninput="updateWaitForWorkForm_()"></div>' +
+      '<div class="emp-time-field"><label>ถึง</label><input type="time" id="wfwEndInput" value="09:00" oninput="updateWaitForWorkForm_()"></div>' +
+      '<p class="defect-sum-status" id="wfwStatus"></p>' +
+      '<button id="wfwSubmitBtn" class="static-primary-btn" type="button" onclick="submitWaitForWork_()">' + checkCircleWhiteIcon() + '<span>บันทึก</span></button>' +
+    '</div>';
+
+  updateWaitForWorkForm_();
+}
+
+function updateWaitForWorkForm_() {
+  var startInput = document.getElementById("wfwStartInput");
+  var endInput = document.getElementById("wfwEndInput");
+  var statusEl = document.getElementById("wfwStatus");
+  var btn = document.getElementById("wfwSubmitBtn");
+  var start = startInput.value || "";
+  var end = endInput.value || "";
+  var valid = !!start && !!end && start < end;
+
+  if (statusEl) {
+    statusEl.textContent = (start && end && start >= end) ? "เวลาเริ่มต้องน้อยกว่าเวลาจบ" : "";
+    statusEl.className = "defect-sum-status" + (start && end && start >= end ? " bad" : "");
+  }
+
+  if (btn) btn.disabled = !valid;
+}
+
+function submitWaitForWork_() {
+  var btn = document.getElementById("wfwSubmitBtn");
+  if (btn) btn.disabled = true;
+
+  var startTime = document.getElementById("wfwStartInput").value;
+  var endTime = document.getElementById("wfwEndInput").value;
+
+  api("logWaitForWork", {
+    payload: {
+      mission: waitForWorkState_.mission,
+      dateStr: waitForWorkState_.dateStr,
+      startTime: startTime,
+      endTime: endTime,
+      lineUserId: currentLineUserId
+    }
+  }).then(function(data) {
+    if (data && data.ok) {
+      goto_(function() { showWaitForWorkSuccessView_(startTime, endTime); });
+      return;
+    }
+    if (btn) btn.disabled = false;
+    alert((data && data.error) || "บันทึกรองานไม่สำเร็จ");
+  }).catch(function(err) {
+    if (btn) btn.disabled = false;
+    alert(err.message || err);
+  });
+}
+
+function showWaitForWorkSuccessView_(startTime, endTime) {
+  document.getElementById("content").innerHTML =
+    '<div class="confirm-view">' +
+      '<h2 class="confirm-heading-success">' + checkCircleIcon() + '<span>บันทึกรองานสำเร็จ</span></h2>' +
+      '<section class="confirm-card">' +
+        '<div class="info-row"><span>Mission</span><span class="info-value">' + escapeHtml(waitForWorkState_.mission) + '</span></div>' +
+        '<div class="info-row"><span>วันที่</span><span class="info-value">' + escapeHtml(waitForWorkState_.dateLabel) + '</span></div>' +
+        '<div class="info-row"><span>ช่วงเวลา</span><span class="info-value">' + escapeHtml(startTime) + '-' + escapeHtml(endTime) + '</span></div>' +
+      '</section>' +
+      '<button class="static-primary-btn" type="button" onclick="goto_(showWaitForWorkTimeEntry_)">' + refreshWhiteIcon() + '<span>บันทึกอีกช่วง (Mission เดิม)</span></button>' +
+      '<button class="static-secondary-btn" type="button" onclick="resetNav_(showHomeChoice_)"><span>กลับหน้าแรก</span></button>' +
+    '</div>';
 }
 
 var creditTapCount_ = 0;
