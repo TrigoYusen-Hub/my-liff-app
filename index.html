@@ -3497,7 +3497,17 @@ function updateDefectSumStatus_(ngValue) {
 // ซ่อมได้จริง -- แยกสองแบบด้วยชื่อใน Part Master เอง ไม่ต้องมี config แยก:
 // ชื่อขึ้นต้นด้วย "Rework " (เช่น "Rework Rust") = ซ่อมได้ ได้ช่องคู่ OK/NG
 // ชื่อเฉย ๆ ไม่มีคำนำหน้า (เช่น "Dent") = ซ่อมไม่ได้ ได้แค่ช่องนับ NG เดียว
+//
+// key ของ breakdown ที่เก็บ (data-defect) ต้องตรงกับ convention ที่ Report.js
+// (ฝั่งสร้าง Mission Traceability Sheet) ใช้อยู่แล้วตั้งแต่ก่อนหน้านี้ --
+// "Rework X" = ยอดซ่อมสำเร็จ (ไปรวมที่คอลัมน์ N), "Scrap X" = ยอดซ่อมไม่
+// สำเร็จ (ไปรวมที่คอลัมน์ O) ช่อง Defect X ของ Traceability Sheet เอาสอง
+// อันนี้มารวมกันเป็นยอดรวมทั้งหมดที่เจอ (ดู defectColumnValue_ ฝั่ง
+// Report.js) -- แก้ 2026-09-07 หลังพบว่าตอนแรกใช้ key "ชื่อ OK"/"ชื่อ NG"
+// ซึ่งไม่ตรงกับที่ Report.js รออ่านอยู่ เลยขึ้น 0 ทั้งคอลัมน์ Rework และ
+// Defect ที่ควรเป็นยอดรวม
 var REWORK_DEFECT_PREFIX_ = "Rework ";
+var SCRAP_DEFECT_PREFIX_ = "Scrap ";
 
 function renderReworkDefectSectionHtml_(defects) {
   if (!defects || defects.length === 0) return "";
@@ -3508,11 +3518,11 @@ function renderReworkDefectSectionHtml_(defects) {
       var name = rawName.slice(REWORK_DEFECT_PREFIX_.length);
       return '<div class="defect-field-row">' +
           '<label>Rework ' + escapeHtml(name) + ' OK</label>' +
-          '<input type="number" inputmode="numeric" class="defect-input" data-defect="' + escapeHtml(name) + ' OK" placeholder="0" oninput="onDefectFieldInput_()">' +
+          '<input type="number" inputmode="numeric" class="defect-input" data-defect="' + escapeHtml(REWORK_DEFECT_PREFIX_ + name) + '" placeholder="0" oninput="onDefectFieldInput_()">' +
         '</div>' +
         '<div class="defect-field-row">' +
           '<label>' + escapeHtml(name) + ' Rework ไม่ได้</label>' +
-          '<input type="number" inputmode="numeric" class="defect-input" data-defect="' + escapeHtml(name) + ' NG" placeholder="0" oninput="onDefectFieldInput_()">' +
+          '<input type="number" inputmode="numeric" class="defect-input" data-defect="' + escapeHtml(SCRAP_DEFECT_PREFIX_ + name) + '" placeholder="0" oninput="onDefectFieldInput_()">' +
         '</div>';
     }
     // ซ่อมไม่ได้ -- นับ NG อย่างเดียว ไม่มีช่อง OK
@@ -3529,15 +3539,15 @@ function renderReworkDefectSectionHtml_(defects) {
   '</div>';
 }
 
-// breakdown เก็บ key แบบ "ชื่อ OK"/"ชื่อ NG" (ซ่อมได้) หรือ "ชื่อ" เฉย ๆ
-// (ซ่อมไม่ได้ นับเป็น NG เสมอ) -- แยกกลับเป็นยอดรวม OK/NG (ใช้แทนช่องกรอก
-// OK/NG ตรง ๆ ของมิชชั่นปกติ)
+// breakdown เก็บ key แบบ "Rework X" (ซ่อมสำเร็จ), "Scrap X" (ซ่อมไม่สำเร็จ)
+// หรือ "X" เฉย ๆ (ซ่อมไม่ได้ตั้งแต่แรก) -- แยกกลับเป็นยอดรวม OK/NG (ใช้แทน
+// ช่องกรอก OK/NG ตรง ๆ ของมิชชั่นปกติ)
 function splitReworkOkNg_(breakdown) {
   var ok = 0, ng = 0;
   Object.keys(breakdown || {}).forEach(function(key) {
     var val = Number(breakdown[key] || 0);
-    if (/ OK$/.test(key)) ok += val;
-    else ng += val; // " NG" ต่อท้าย (ซ่อมได้แต่ซ่อมไม่สำเร็จ) หรือชื่อเฉย ๆ (ซ่อมไม่ได้ตั้งแต่แรก) -- ทั้งคู่นับ NG เหมือนกัน
+    if (key.indexOf(REWORK_DEFECT_PREFIX_) === 0) ok += val;
+    else ng += val; // "Scrap X" (ซ่อมไม่สำเร็จ) หรือชื่อเฉย ๆ (ซ่อมไม่ได้ตั้งแต่แรก) -- ทั้งคู่นับ NG เหมือนกัน
   });
   return { ok: ok, ng: ng };
 }
