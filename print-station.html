@@ -425,7 +425,9 @@ function api_(action, payload) {
 // คอลัมน์ Mission ในตารางประวัติ โชว์แบบ "มิชชั่น/batch 4 ตัวท้าย #เลขกล่อง"
 // เพื่อให้พนักงานหน้าเครื่องพิมพ์เช็คย้อนหลังได้ว่าใบไหนคือกล่องไหนของ batch ไหน
 function formatHistoryMission_(job) {
-  var batch4 = String(job.batch || "").slice(-4);
+  // งาน Rework เก็บ Batch เป็น "<batch>(Rework)" -- ตัดคำต่อท้ายออกก่อนเอา 4 ตัวท้าย
+  // (ไม่งั้นจะได้ "work)" แทนเลข Batch) ชื่อมิชชั่นในคอลัมน์เดียวกันบอกอยู่แล้วว่าเป็น Rework
+  var batch4 = String(job.batch || "").replace(/\s*\(rework\)\s*$/i, "").slice(-4);
   var boxNum = (job.boxNumber != null && job.boxNumber !== "") ? job.boxNumber : "?";
   return escapeHtml_(job.mission) + '<span class="hist-sub">/' + escapeHtml_(batch4) + " #" + escapeHtml_(String(boxNum)) + "</span>";
 }

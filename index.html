@@ -2620,7 +2620,10 @@ async function onManualPartChange_() {
     try {
       var res = await api("getBatchOptions", { partNumber: partNumber });
       // รับงาน: โชว์ทุก Batch ที่เคยรับของ Part นี้ (ไว้เลือกรับซ้ำ) และยังพิมพ์ใหม่ได้
-      setBatchComboOptions_("recv", (res && res.ok && res.options) ? res.options : []);
+      // แถว "<batch>(Rework)" เป็นสต๊อกของงาน Rework ไม่ใช่ของที่รับเข้า -- ไม่โชว์เป็นตัวเลือกรับงาน
+      setBatchComboOptions_("recv", (res && res.ok && res.options) ? res.options.filter(function(b) {
+        return !/\(rework\)\s*$/i.test(String(b.batch || ""));
+      }) : []);
     } catch (e) {
       setBatchComboOptions_("recv", []);
     }
@@ -3647,6 +3650,21 @@ function isReworkMissionName_(mission) {
   return String(mission || "").toLowerCase().indexOf(REWORK_MISSION_SUFFIX_.toLowerCase()) !== -1;
 }
 
+// Batch ของงาน Rework ถูกเก็บแยกเป็น "<batch>(Rework)" ใน Inventory/Daily_Work_Log
+// (ฝั่ง server ใส่ให้เอง ดู toReworkBatchName_ ใน Utils.js -- พนักงานพิมพ์/สแกน
+// เลข Batch ปกติได้เลย) ฟังก์ชันนี้แค่ "โชว์" ชื่อที่จะถูกบันทึกให้เห็นก่อนกดยืนยัน
+var REWORK_BATCH_SUFFIX_ = "(Rework)";
+
+function stripReworkBatchSuffix_(batch) {
+  return String(batch || "").replace(/\s*\(rework\)\s*$/i, "").trim();
+}
+
+function displayBatchName_(mission, batch) {
+  var b = String(batch || "").trim();
+  if (!b || !isReworkMissionName_(mission)) return b;
+  return stripReworkBatchSuffix_(b) + REWORK_BATCH_SUFFIX_;
+}
+
 function okLabelText_(mission) {
   return isReworkMissionName_(mission) ? "Rework OK" : "OK";
 }
@@ -3894,8 +3912,18 @@ async function onDailyWorkManualPartChange_() {
         recheckRes = { ok: false, options: [] };
       }
       var recheckBatches = (recheckRes && recheckRes.ok && recheckRes.options) ? recheckRes.options.map(function(b) {
-        return { batch: b.batch };
+        // Rework: โชว์เลข Batch ปกติ (ตัด (Rework) ออก) แล้วเอามาลบซ้ำ -- ฝั่ง
+        // server จะใส่ (Rework) ให้เองตอนบันทึก
+        return { batch: isRework ? stripReworkBatchSuffix_(b.batch) : b.batch };
       }) : [];
+      if (isRework) {
+        var seenReworkBatch = {};
+        recheckBatches = recheckBatches.filter(function(b) {
+          if (!b.batch || seenReworkBatch[b.batch]) return false;
+          seenReworkBatch[b.batch] = true;
+          return true;
+        });
+      }
       setBatchComboOptions_("dw", recheckBatches);
     } else {
       var batchRes;
@@ -4050,7 +4078,7 @@ async function showDailyWorkQtyEntry() {
     <div class="result-view">
       <p class="picker-context">Mission : ${escapeHtml(dailyWorkState.mission)}</p>
       <p class="picker-context">Part No. : ${escapeHtml(dailyWorkState.partNumber)}</p>
-      <p class="picker-context">Batch No. : ${escapeHtml(dailyWorkState.batch)}</p>
+      <p class="picker-context">Batch No. : ${escapeHtml(displayBatchName_(dailyWorkState.mission, dailyWorkState.batch))}</p>
 
       ${stockBoxHtml}
 
@@ -4225,7 +4253,7 @@ function showDailyWorkConfirm() {
         </div>
         <div class="info-row">
           <span>Batch</span>
-          <span class="info-value">${escapeHtml(dailyWorkState.batch)}</span>
+          <span class="info-value">${escapeHtml(displayBatchName_(dailyWorkState.mission, dailyWorkState.batch))}</span>
         </div>
         ${dailyWorkState.lotCode ? '<div class="info-row"><span>Lot No.</span><span class="info-value">' + escapeHtml(dailyWorkState.lotCode) + '</span></div>' : ""}
       </section>
