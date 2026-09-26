@@ -3660,14 +3660,19 @@ function applyDailyWorkScanOption_(opt) {
   dailyWorkState.partNumber = opt.partNumber;
   dailyWorkState.partName = opt.partName;
   dailyWorkState.batch = opt.batch;
+  // มิชชั่น Rework ไม่ต้องรับงานมาก่อน ไม่มีเพดานยอดคงเหลือ (เหมือนฝั่งกรอกเอง)
+  // -- ห้ามเอา "คงเหลือ = 0" มาบล็อกเหมือนมิชชั่นปกติ เพราะงาน Rework คือ Batch
+  // ที่ทำเสร็จไปแล้วเสมอ (แก้ 2026-09-26 หลังพบว่าสแกนแล้วขึ้น "ทำครบแล้ว")
+  var isRework = isReworkMissionName_(opt.mission);
+
   dailyWorkState.isRecheck = !!opt.isRecheck;
-  dailyWorkState.receivedTotal = opt.isRecheck ? 0 : opt.receivedTotal;
-  dailyWorkState.remaining = opt.isRecheck ? 0 : opt.remaining;
+  dailyWorkState.receivedTotal = (opt.isRecheck || isRework) ? 0 : opt.receivedTotal;
+  dailyWorkState.remaining = (opt.isRecheck || isRework) ? 0 : opt.remaining;
   dailyWorkState.defects = undefined;
   dailyWorkState.defectBreakdown = {};
   dailyWorkState.lotCode = opt.lotCode || "";
 
-  if (!opt.isRecheck && opt.remaining <= 0) {
+  if (!opt.isRecheck && !isRework && opt.remaining <= 0) {
     goto_(function() { showNoStockView_("Batch นี้ทำครบแล้ว ไม่มีงานคงเหลือ"); });
     return;
   }
@@ -4019,8 +4024,10 @@ async function showDailyWorkQtyEntry() {
   var isRecheck = !!dailyWorkState.isRecheck;
   var isRework = isReworkMissionName_(dailyWorkState.mission);
 
-  var stockBoxHtml = isRecheck
-    ? '<div class="stock-box"><div class="stock-box-label">งานตรวจซ้ำ (Recheck)</div><div class="stock-box-value" style="font-size:2.2vh;">ไม่ผูกกับยอดคงเหลือ</div></div>'
+  // Rework ก็ไม่มีเพดานยอดคงเหลือเหมือน Recheck -- ไม่โชว์ "เหลือต้องทำ 0 Pcs"
+  // ที่ทำให้เข้าใจผิดว่าลงไม่ได้ (Batch ที่ Rework คือของที่ทำเสร็จไปแล้วเสมอ)
+  var stockBoxHtml = (isRecheck || isRework)
+    ? '<div class="stock-box"><div class="stock-box-label">' + (isRework ? 'งาน Rework' : 'งานตรวจซ้ำ (Recheck)') + '</div><div class="stock-box-value" style="font-size:2.2vh;">ไม่ผูกกับยอดคงเหลือ</div></div>'
     : '<div class="stock-box">' +
         '<div class="stock-box-label">เหลือต้องทำ (จากรับเข้า ' + dailyWorkState.receivedTotal + ')</div>' +
         '<div class="stock-box-value">' + dailyWorkState.remaining + ' Pcs</div>' +
