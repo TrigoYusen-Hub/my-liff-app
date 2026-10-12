@@ -1936,7 +1936,7 @@ footer {
     </footer>
 </main>
 
-<div id="loadingOverlay" class="loading-overlay">
+<div id="loadingOverlay" class="loading-overlay show">
   <div class="loading-overlay-spinner"></div>
   <p class="loading-overlay-text">กำลังโหลด<br>กรุณารอสักครู่...</p>
 </div>
@@ -2080,6 +2080,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       "code: " + (e && e.code) + "\n" +
       "raw: " + JSON.stringify(e)
     );
+    hideLoadingOverlay_();
     return;
   }
 

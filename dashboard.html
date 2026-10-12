@@ -1059,7 +1059,7 @@ body {
     <div id="content"></div>
   </main>
 
-  <div id="loadingOverlay" class="loading-overlay">
+  <div id="loadingOverlay" class="loading-overlay show">
     <div class="loading-overlay-spinner"></div>
     <p class="loading-overlay-text">กำลังโหลด<br>กรุณารอสักครู่...</p>
   </div>
@@ -1145,6 +1145,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     await withTimeout_(liff.init({ liffId: "2010604851-AXA6OKaH" }), 15000);
   } catch (e) {
     alert("liff.init() ล้มเหลว: " + (e && e.message ? e.message : e));
+    hideLoadingOverlay_();
     return;
   }
 
