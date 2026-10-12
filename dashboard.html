@@ -837,7 +837,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 9997;
-  background: rgba(255,255,255,.04);
+  background: var(--bg-page);
   overflow-y: auto;
 }
 
@@ -1118,6 +1118,7 @@ body {
 var GAS_API = "https://script.google.com/macros/s/AKfycbxeASt8OLOAIj9GIuJUGUGS6iBeELosvSfsrm0oSGN7GfOeEyb8NVD2_2z7XMralNZdlA/exec";
 
 var currentLineUserId = "";
+var currentLineDisplayName = "";
 var currentEmployeeDisplayName = "";
 
 var dashState = {
@@ -1189,12 +1190,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   try {
     var profile = await withTimeout_(liff.getProfile(), 15000);
     currentLineUserId = profile.userId;
+    currentLineDisplayName = profile.displayName;
   } catch (e) {
     alert("liff.getProfile() ล้มเหลว: " + (e && e.message ? e.message : e));
   }
 
   try {
-    var initData = await api("getInitialData", { lineUserId: currentLineUserId, lineDisplayName: "", appName: "Dashboard" });
+    var initData = await api("getInitialData", { lineUserId: currentLineUserId, lineDisplayName: currentLineDisplayName, appName: "Dashboard" });
 
     if (!initData || !initData.employee || !initData.employee.employeeId) {
       showUnauthorizedView();
@@ -1343,7 +1345,7 @@ function showAccessRequestForm_() {
     api("requestAccess", {
       payload: {
         lineUserId: currentLineUserId,
-        lineDisplayName: "",
+        lineDisplayName: currentLineDisplayName,
         typedName: name,
         employeeCode: code,
         appName: "Dashboard"
