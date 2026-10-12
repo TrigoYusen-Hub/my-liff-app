@@ -421,6 +421,40 @@ body {
   margin: 0;
 }
 
+.access-request-form {
+  margin-top: 1vh;
+  width: 100%;
+  text-align: left;
+}
+
+.access-request-form label {
+  display: block;
+  font-size: 1.6vh;
+  color: #5a6472;
+  margin: 1.5vh 0 0.6vh;
+  font-weight: 600;
+}
+
+.access-request-form input {
+  width: 100%;
+  padding: 1.2vh 1.4vh;
+  border: 1px solid #d5dae1;
+  border-radius: 8px;
+  font-size: 1.9vh;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.access-request-status {
+  margin-top: 1.5vh;
+  font-size: 1.6vh;
+  color: #2c6e1f;
+}
+
+.access-request-status.err {
+  color: #a12525;
+}
+
 .static-primary-btn {
   width: 319px;
   max-width: calc(100% - 32px);
@@ -1077,6 +1111,18 @@ body {
   line-height: 1.6;
 }
 
+.hidden-logo-tap {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  width: 5.2vh;
+  height: 5.2vh;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .noti-bell {
   position: absolute;
   top: 10px;
@@ -1514,6 +1560,7 @@ body {
 
     <div id="homeHero" style="display:none">
       <header class="home-header">
+        <button class="hidden-logo-tap" type="button" onclick="handleLogoTap_()" aria-label="TRIGO"></button>
         <button class="noti-bell" type="button" id="notiBell" onclick="openChangelog_()" aria-label="ประวัติการอัปเดต">
           <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6a4 4 0 0 1 4 4v1.6c8.3 1.8 13.5 9 13.5 18.4v8.4l4.5 6.6v3H10v-3l4.5-6.6v-8.4c0-9.4 5.2-16.6 13.5-18.4V10a4 4 0 0 1 4-4z" fill="#0E4F8C"></path><path d="M25 51h14a7 7 0 0 1-14 0z" fill="#0E4F8C"></path></svg>
           <span class="noti-dot" id="notiDot"></span>
@@ -1870,8 +1917,210 @@ function showUnauthorizedView() {
         bigXIcon() +
         '<h2 class="error-title">' + smallXIcon() + '<span>ไม่ได้รับอนุญาต</span></h2>' +
         '<p class="error-text">บัญชี LINE นี้ยังไม่ได้ลงทะเบียน<br>เป็นพนักงานในระบบ<br>กรุณาติดต่อหัวหน้างาน</p>' +
+        '<button type="button" class="static-primary-btn" id="accessRequestBtn" onclick="showAccessRequestForm_()" style="height:auto;padding:1.2vh 3vh;">ร้องขอการเข้าถึง</button>' +
       '</section>' +
     '</div>';
+}
+
+function showAccessRequestForm_() {
+  var btn = document.getElementById("accessRequestBtn");
+  if (!btn) return;
+
+  var wrap = document.createElement("div");
+  wrap.className = "access-request-form";
+  wrap.innerHTML =
+    '<label>ชื่อ-นามสกุล</label><input type="text" id="arName">' +
+    '<label>รหัสพนักงาน</label><input type="text" id="arCode">' +
+    '<button type="button" class="static-primary-btn" id="arSubmitBtn" style="height:auto;padding:1.2vh;">ยืนยัน</button>' +
+    '<p class="access-request-status" id="arStatus"></p>';
+  btn.replaceWith(wrap);
+
+  document.getElementById("arSubmitBtn").addEventListener("click", function() {
+    var name = document.getElementById("arName").value.trim();
+    var code = document.getElementById("arCode").value.trim();
+    var statusEl = document.getElementById("arStatus");
+
+    if (!name || !code) {
+      statusEl.className = "access-request-status err";
+      statusEl.textContent = "กรุณากรอกให้ครบ";
+      return;
+    }
+
+    var submitBtn = document.getElementById("arSubmitBtn");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "กำลังส่ง...";
+
+    api("requestAccess", {
+      payload: {
+        lineUserId: currentLineUserId,
+        lineDisplayName: "",
+        typedName: name,
+        employeeCode: code,
+        appName: "Report"
+      }
+    }).then(function(res) {
+      if (res && res.ok) {
+        wrap.innerHTML = '<p class="access-request-status">ส่งคำขอแล้ว รอการติดต่อกลับ</p>';
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "ยืนยัน";
+        statusEl.className = "access-request-status err";
+        statusEl.textContent = (res && res.error) || "ส่งไม่สำเร็จ";
+      }
+    }).catch(function() {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "ยืนยัน";
+      statusEl.className = "access-request-status err";
+      statusEl.textContent = "เชื่อมต่อไม่สำเร็จ";
+    });
+  });
+}
+
+// ===== ซ่อนไว้: แตะโลโก้ TRIGO ที่แบนเนอร์หน้าแรก 3 ครั้งรัวๆ เด้งฟอร์มเพิ่ม
+// พนักงาน (เหมือนฟอร์มใน Backoffice แอพแยก ใช้ backend ตัวเดียวกัน
+// backofficeAddEmployee -- ต้องใส่ PIN เหมือนกันทุกประการ ไม่ได้ผ่อนสิทธิ์
+// เพราะเป็นแค่ทางลัดเข้าถึง ไม่ใช่ปล่อยให้ข้ามการยืนยันตัวตน) =====
+var logoTapCount_ = 0;
+var logoTapTimer_ = null;
+
+function handleLogoTap_() {
+  logoTapCount_++;
+
+  if (logoTapTimer_) clearTimeout(logoTapTimer_);
+  logoTapTimer_ = setTimeout(function() { logoTapCount_ = 0; }, 2000);
+
+  if (logoTapCount_ >= 3) {
+    logoTapCount_ = 0;
+    clearTimeout(logoTapTimer_);
+    showHiddenAddEmployee_();
+  }
+}
+
+function buildHiddenOverlayShell_() {
+  var overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;z-index:10000;background:rgba(0,5,19,.65);display:flex;align-items:center;justify-content:center;padding:16px;";
+  var card = document.createElement("div");
+  card.style.cssText = "background:#ffffff;border-radius:12px;padding:20px;width:100%;max-width:360px;max-height:85vh;overflow-y:auto;box-sizing:border-box;";
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  return { overlay: overlay, card: card };
+}
+
+function hiddenFieldHtml_(id, labelText, placeholder, type) {
+  return '<label style="display:block;font-size:0.82rem;color:#5a6472;margin:12px 0 4px;font-weight:600;">' + labelText + '</label>' +
+    '<input type="' + (type || "text") + '" id="' + id + '"' + (placeholder ? ' placeholder="' + placeholder + '"' : "") +
+    ' style="width:100%;padding:10px 12px;border:1px solid #d5dae1;border-radius:8px;font-size:0.95rem;box-sizing:border-box;">';
+}
+
+function showHiddenAddEmployee_() {
+  var shell = buildHiddenOverlayShell_();
+  shell.card.innerHTML =
+    '<h2 style="margin:0 0 14px;">เข้าสู่ระบบ Admin</h2>' +
+    hiddenFieldHtml_("hiddenPinInput", "รหัสผ่าน", "", "password") +
+    '<button type="button" id="hiddenPinSubmit" class="static-primary-btn" style="height:auto;padding:1.2vh;margin-top:14px;width:100%;">เข้าสู่ระบบ</button>' +
+    '<p id="hiddenPinStatus" style="margin-top:10px;font-size:0.85rem;color:#a12525;"></p>' +
+    '<button type="button" id="hiddenOverlayClose" style="margin-top:6px;width:100%;background:none;border:none;color:#7a8391;font-size:0.85rem;cursor:pointer;">ปิด</button>';
+
+  shell.card.querySelector("#hiddenOverlayClose").addEventListener("click", function() { shell.overlay.remove(); });
+
+  var pinInput = shell.card.querySelector("#hiddenPinInput");
+  pinInput.focus();
+
+  function doLogin() {
+    var pin = pinInput.value.trim();
+    if (!pin) return;
+    var btn = shell.card.querySelector("#hiddenPinSubmit");
+    btn.disabled = true; btn.textContent = "กำลังตรวจสอบ...";
+    api("backofficeLogin", { pin: pin }).then(function(res) {
+      if (res && res.ok) {
+        showHiddenAddEmployeeForm_(shell, pin);
+      } else {
+        btn.disabled = false; btn.textContent = "เข้าสู่ระบบ";
+        shell.card.querySelector("#hiddenPinStatus").textContent = (res && res.error) || "รหัสผ่านไม่ถูกต้อง";
+      }
+    }).catch(function() {
+      btn.disabled = false; btn.textContent = "เข้าสู่ระบบ";
+      shell.card.querySelector("#hiddenPinStatus").textContent = "เชื่อมต่อไม่สำเร็จ";
+    });
+  }
+  shell.card.querySelector("#hiddenPinSubmit").addEventListener("click", doLogin);
+  pinInput.addEventListener("keydown", function(e) { if (e.key === "Enter") doLogin(); });
+}
+
+function showHiddenAddEmployeeForm_(shell, pin) {
+  shell.card.innerHTML =
+    '<h2 style="margin:0 0 14px;">เพิ่มพนักงาน</h2>' +
+    '<label style="display:block;font-size:0.82rem;color:#5a6472;margin:0 0 4px;font-weight:600;">รูปแบบพนักงาน</label>' +
+    '<select id="hType" style="width:100%;padding:10px 12px;border:1px solid #d5dae1;border-radius:8px;font-size:0.95rem;">' +
+      '<option value="Permanent">Permanent</option><option value="On-Call">On-Call</option>' +
+    '</select>' +
+    hiddenFieldHtml_("hPass", "รหัสพนักงาน", "Trigoxxx") +
+    hiddenFieldHtml_("hName", "ชื่อ-นามสกุล", "กรอกชื่อ นามสกุล ภาษาอังกฤษ") +
+    '<label style="display:block;font-size:0.82rem;color:#5a6472;margin:12px 0 4px;font-weight:600;">Site</label>' +
+    '<select id="hSite" style="width:100%;padding:10px 12px;border:1px solid #d5dae1;border-radius:8px;font-size:0.95rem;">' +
+      '<option value="LCBTH">LCBTH</option><option value="AMATA">AMATA</option><option value="BANGNA">BANGNA</option><option value="RAYONG">RAYONG</option>' +
+    '</select>' +
+    hiddenFieldHtml_("hTravelIn", "เวลาเดินทางมา (ไม่บังคับ)", "เช่น 1 ชม.") +
+    hiddenFieldHtml_("hTravelOut", "เวลาเดินทางกลับ (ไม่บังคับ)", "เช่น 1 ชม.") +
+    '<button type="button" id="hSaveBtn" class="static-primary-btn" style="height:auto;padding:1.2vh;margin-top:14px;width:100%;">บันทึก</button>' +
+    '<p id="hStatus" style="margin-top:10px;font-size:0.85rem;"></p>' +
+    '<button type="button" id="hClose" style="margin-top:6px;width:100%;background:none;border:none;color:#7a8391;font-size:0.85rem;cursor:pointer;">ปิด</button>';
+
+  var typeSelect = shell.card.querySelector("#hType");
+  var passInput = shell.card.querySelector("#hPass");
+
+  function applyType() {
+    if (typeSelect.value === "On-Call") {
+      passInput.value = "";
+      passInput.disabled = true;
+      passInput.placeholder = "Oncall ไม่ต้องกรอกรหัส";
+    } else {
+      passInput.disabled = false;
+      passInput.placeholder = "Trigoxxx";
+    }
+  }
+  typeSelect.addEventListener("change", applyType);
+  applyType();
+
+  shell.card.querySelector("#hClose").addEventListener("click", function() { shell.overlay.remove(); });
+
+  shell.card.querySelector("#hSaveBtn").addEventListener("click", function() {
+    var type = typeSelect.value;
+    var pass = passInput.value.trim();
+    var name = shell.card.querySelector("#hName").value.trim();
+    var statusEl = shell.card.querySelector("#hStatus");
+
+    if (!name) { statusEl.style.color = "#a12525"; statusEl.textContent = "กรุณากรอกชื่อ"; return; }
+    if (type === "Permanent" && !pass) { statusEl.style.color = "#a12525"; statusEl.textContent = "กรุณากรอกรหัสพนักงาน"; return; }
+
+    var btn = shell.card.querySelector("#hSaveBtn");
+    btn.disabled = true; btn.textContent = "กำลังบันทึก...";
+
+    api("backofficeAddEmployee", {
+      pin: pin,
+      pass: type === "Permanent" ? pass : "",
+      name: name,
+      type: type,
+      site: shell.card.querySelector("#hSite").value,
+      travelIn: shell.card.querySelector("#hTravelIn").value.trim(),
+      travelOut: shell.card.querySelector("#hTravelOut").value.trim()
+    }).then(function(res) {
+      btn.disabled = false; btn.textContent = "บันทึก";
+      if (res && res.ok) {
+        statusEl.style.color = "#2c6e1f";
+        statusEl.textContent = "เพิ่มพนักงานสำเร็จ" + (res.employeeId ? " (" + res.employeeId + ")" : "");
+        passInput.value = "";
+        shell.card.querySelector("#hName").value = "";
+      } else {
+        statusEl.style.color = "#a12525";
+        statusEl.textContent = (res && res.error) || "บันทึกไม่สำเร็จ";
+      }
+    }).catch(function() {
+      btn.disabled = false; btn.textContent = "บันทึก";
+      statusEl.style.color = "#a12525";
+      statusEl.textContent = "เชื่อมต่อไม่สำเร็จ";
+    });
+  });
 }
 
 function escapeHtml(value) {
@@ -2537,7 +2786,7 @@ function resetPresenceAndGoto_() {
 // มิชชั่นจาก getDashboardDailyWork ชุดเดียวกับหน้า "ตรวจสอบ/แก้ไขใบงาน" เลย
 // เพราะมิชชั่นที่ขึ้นในนี้ค้ำประกันอยู่แล้วว่ามีไฟล์ใบรายงานจริง (ออกแบบร่วมกับ
 // ผู้ใช้ 2026-09-07: Admin/Engineer เท่านั้น, ครั้งเดียวลงได้หลายช่วงเวลา)
-var waitForWorkState_ = { dateStr: "", dateLabel: "", mission: "" };
+var waitForWorkState_ = { dateStr: "", dateLabel: "", mission: "", mode: "wait", supportEmployees: [] };
 
 function showWaitForWorkDatePicker_() {
   setPageTitle_("บันทึกรองาน");
@@ -2595,9 +2844,125 @@ async function showWaitForWorkMissionList_() {
     }),
     onSelect: function(item) {
       waitForWorkState_.mission = item.value;
-      goto_(showWaitForWorkTimeEntry_);
+      goto_(showWaitForWorkModeChoice_);
     }
   });
+}
+
+function showWaitForWorkModeChoice_() {
+  setPageTitle_("บันทึกรองาน");
+  document.getElementById("content").innerHTML =
+    '<div class="picker-page">' +
+      '<p class="picker-context">วันที่ : ' + escapeHtml(waitForWorkState_.dateLabel) + '</p>' +
+      '<p class="picker-context">Mission : ' + escapeHtml(waitForWorkState_.mission) + '</p>' +
+      '<button class="static-primary-btn" type="button" onclick="selectWaitForWorkMode_(\'wait\')" style="margin-top:2vh;">รองาน</button>' +
+      '<button class="static-secondary-btn" type="button" onclick="selectWaitForWorkMode_(\'support\')">Support</button>' +
+    '</div>';
+}
+
+function selectWaitForWorkMode_(mode) {
+  waitForWorkState_.mode = mode;
+  if (mode === "support") {
+    goto_(showSupportEmployeePicker_);
+  } else {
+    goto_(showWaitForWorkTimeEntry_);
+  }
+}
+
+// พนักงานที่เลือกลง Support ได้ ต้องมีชื่ออยู่ในมิชชั่น/วันที่นี้แล้วเท่านั้น
+// (ลงยอดงานเองแล้ว หรือแอดมินเพิ่มชื่อเข้ามิชชั่นแบบไม่เพิ่มยอดก็นับ -- ดู
+// getMissionEmployeesForDate_ ฝั่ง Report.js)
+async function showSupportEmployeePicker_() {
+  setPageTitle_("บันทึกรองาน");
+  document.getElementById("content").innerHTML = '<div class="picker-page"><p class="picker-context">กำลังโหลด...</p></div>';
+
+  var res = await api("getMissionEmployeesForDate", { mission: waitForWorkState_.mission, dateStr: waitForWorkState_.dateStr }).catch(function() { return { ok: false }; });
+  var employees = (res && res.ok && res.employees) || [];
+
+  if (employees.length === 0) {
+    document.getElementById("content").innerHTML =
+      '<div class="picker-page">' +
+        '<p class="picker-context">Mission : ' + escapeHtml(waitForWorkState_.mission) + '</p>' +
+        '<div class="dash-empty-text">ยังไม่มีพนักงานในมิชชั่นนี้ของวันที่เลือก (ต้องลงยอดงาน หรือแอดมินเพิ่มชื่อเข้ามิชชั่นก่อน)</div>' +
+      '</div>';
+    return;
+  }
+
+  var rowsHtml = employees.map(function(e) {
+    return '<label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eef1f5;font-size:1.9vh;">' +
+      '<input type="checkbox" class="support-emp-check" data-id="' + escapeHtml(e.employeeId) + '" data-name="' + escapeHtml(e.employeeName) + '" style="width:2.4vh;height:2.4vh;flex:0 0 auto;">' +
+      '<span>' + escapeHtml(e.employeeName) + '</span>' +
+    '</label>';
+  }).join("");
+
+  document.getElementById("content").innerHTML =
+    '<div class="picker-page">' +
+      '<p class="picker-context">วันที่ : ' + escapeHtml(waitForWorkState_.dateLabel) + '</p>' +
+      '<p class="picker-context">Mission : ' + escapeHtml(waitForWorkState_.mission) + '</p>' +
+      '<p class="picker-context">เลือกพนักงานที่ Support Shaeffler</p>' +
+      '<div>' + rowsHtml + '</div>' +
+      '<button id="supportNextBtn" class="static-primary-btn" type="button" onclick="goToSupportTimeEntry_()" disabled style="margin-top:2vh;">ถัดไป</button>' +
+    '</div>';
+
+  Array.prototype.forEach.call(document.querySelectorAll(".support-emp-check"), function(cb) {
+    cb.addEventListener("change", function() {
+      var anyChecked = Array.prototype.some.call(document.querySelectorAll(".support-emp-check"), function(c) { return c.checked; });
+      document.getElementById("supportNextBtn").disabled = !anyChecked;
+    });
+  });
+}
+
+function goToSupportTimeEntry_() {
+  var checked = Array.prototype.filter.call(document.querySelectorAll(".support-emp-check"), function(c) { return c.checked; });
+  waitForWorkState_.supportEmployees = checked.map(function(c) {
+    return { employeeId: c.getAttribute("data-id"), employeeName: c.getAttribute("data-name"), startTime: "08:00", endTime: "17:00" };
+  });
+  goto_(showSupportTimeEntry_);
+}
+
+// ตั้งต้นเวลาเท่ากันทุกคน ปรับแยกรายคนได้ถ้าเวลาไม่ตรงกัน -- ตอนบันทึก คนที่
+// เวลาตรงกันจะถูกรวมเป็นบรรทัดเดียว (ดู buildWaitForWorkEntries_)
+function showSupportTimeEntry_() {
+  setPageTitle_("บันทึกรองาน");
+
+  var rowsHtml = waitForWorkState_.supportEmployees.map(function(e, idx) {
+    return '<div style="margin-top:1.6vh;padding-top:1.4vh;border-top:1px solid #eef1f5;">' +
+      '<p class="picker-context" style="margin:0 0 0.6vh;font-weight:700;">' + escapeHtml(e.employeeName) + '</p>' +
+      '<div class="emp-time-field"><label>เริ่ม</label><input type="time" value="' + e.startTime + '" oninput="updateSupportTimeEntry_(' + idx + ', this.value, null)"></div>' +
+      '<div class="emp-time-field"><label>ถึง</label><input type="time" value="' + e.endTime + '" oninput="updateSupportTimeEntry_(' + idx + ', null, this.value)"></div>' +
+    '</div>';
+  }).join("");
+
+  document.getElementById("content").innerHTML =
+    '<div class="result-view">' +
+      '<p class="picker-context">วันที่ : ' + escapeHtml(waitForWorkState_.dateLabel) + '</p>' +
+      '<p class="picker-context">Mission : ' + escapeHtml(waitForWorkState_.mission) + '</p>' +
+      rowsHtml +
+      '<p class="defect-sum-status" id="wfwStatus"></p>' +
+      '<button id="wfwSubmitBtn" class="static-primary-btn" type="button" onclick="submitWaitForWork_()" style="margin-top:2vh;">' + checkCircleWhiteIcon() + '<span>บันทึก</span></button>' +
+    '</div>';
+
+  validateSupportTimes_();
+}
+
+function updateSupportTimeEntry_(idx, startVal, endVal) {
+  if (startVal !== null) waitForWorkState_.supportEmployees[idx].startTime = startVal;
+  if (endVal !== null) waitForWorkState_.supportEmployees[idx].endTime = endVal;
+  validateSupportTimes_();
+}
+
+function validateSupportTimes_() {
+  var statusEl = document.getElementById("wfwStatus");
+  var btn = document.getElementById("wfwSubmitBtn");
+  var allValid = waitForWorkState_.supportEmployees.every(function(e) {
+    return e.startTime && e.endTime && e.startTime < e.endTime;
+  });
+
+  if (statusEl) {
+    statusEl.textContent = allValid ? "" : "กรุณาตรวจสอบเวลาของทุกคน (เวลาเริ่มต้องน้อยกว่าเวลาจบ)";
+    statusEl.className = "defect-sum-status" + (allValid ? "" : " bad");
+  }
+  if (btn) btn.disabled = !allValid;
 }
 
 function showWaitForWorkTimeEntry_() {
@@ -2633,44 +2998,72 @@ function updateWaitForWorkForm_() {
   if (btn) btn.disabled = !valid;
 }
 
+// โหมด Support: รวมพนักงานที่เวลาตรงกันเป็น entry เดียวกัน (ชื่อคั่นด้วย
+// comma, backend เขียน 1 entry = 1 บรรทัด) คนที่เวลาไม่ตรงกันแยก entry ของ
+// ตัวเอง -- โหมด รองาน ยังเป็น entry เดียวเหมือนเดิม
+function buildWaitForWorkEntries_() {
+  if (waitForWorkState_.mode === "support") {
+    var groups = {};
+    var order = [];
+    waitForWorkState_.supportEmployees.forEach(function(e) {
+      var key = e.startTime + "|" + e.endTime;
+      if (!groups[key]) {
+        groups[key] = { mode: "support", employeeNames: [], startTime: e.startTime, endTime: e.endTime };
+        order.push(key);
+      }
+      groups[key].employeeNames.push(e.employeeName);
+    });
+    return order.map(function(key) { return groups[key]; });
+  }
+
+  return [{
+    mode: "wait",
+    startTime: document.getElementById("wfwStartInput").value,
+    endTime: document.getElementById("wfwEndInput").value
+  }];
+}
+
 function submitWaitForWork_() {
   var btn = document.getElementById("wfwSubmitBtn");
   if (btn) btn.disabled = true;
 
-  var startTime = document.getElementById("wfwStartInput").value;
-  var endTime = document.getElementById("wfwEndInput").value;
+  var entries = buildWaitForWorkEntries_();
 
   api("logWaitForWork", {
     payload: {
       mission: waitForWorkState_.mission,
       dateStr: waitForWorkState_.dateStr,
-      startTime: startTime,
-      endTime: endTime,
+      entries: entries,
       lineUserId: currentLineUserId
     }
   }).then(function(data) {
     if (data && data.ok) {
-      goto_(function() { showWaitForWorkSuccessView_(startTime, endTime); });
+      goto_(function() { showWaitForWorkSuccessView_(entries); });
       return;
     }
     if (btn) btn.disabled = false;
-    alert((data && data.error) || "บันทึกรองานไม่สำเร็จ");
+    alert((data && data.error) || "บันทึกไม่สำเร็จ");
   }).catch(function(err) {
     if (btn) btn.disabled = false;
     alert(err.message || err);
   });
 }
 
-function showWaitForWorkSuccessView_(startTime, endTime) {
+function showWaitForWorkSuccessView_(entries) {
+  var linesHtml = entries.map(function(e) {
+    var label = e.mode === "support" ? e.employeeNames.join(",") + " Support Shaeffler" : "รองาน";
+    return '<div class="info-row"><span>' + escapeHtml(label) + '</span><span class="info-value">' + escapeHtml(e.startTime) + '-' + escapeHtml(e.endTime) + '</span></div>';
+  }).join("");
+
   document.getElementById("content").innerHTML =
     '<div class="confirm-view">' +
-      '<h2 class="confirm-heading-success">' + checkCircleIcon() + '<span>บันทึกรองานสำเร็จ</span></h2>' +
+      '<h2 class="confirm-heading-success">' + checkCircleIcon() + '<span>บันทึกสำเร็จ</span></h2>' +
       '<section class="confirm-card">' +
         '<div class="info-row"><span>Mission</span><span class="info-value">' + escapeHtml(waitForWorkState_.mission) + '</span></div>' +
         '<div class="info-row"><span>วันที่</span><span class="info-value">' + escapeHtml(waitForWorkState_.dateLabel) + '</span></div>' +
-        '<div class="info-row"><span>ช่วงเวลา</span><span class="info-value">' + escapeHtml(startTime) + '-' + escapeHtml(endTime) + '</span></div>' +
+        linesHtml +
       '</section>' +
-      '<button class="static-primary-btn" type="button" onclick="goto_(showWaitForWorkTimeEntry_)">' + refreshWhiteIcon() + '<span>บันทึกอีกช่วง (Mission เดิม)</span></button>' +
+      '<button class="static-primary-btn" type="button" onclick="goto_(showWaitForWorkModeChoice_)">' + refreshWhiteIcon() + '<span>บันทึกอีกช่วง (Mission เดิม)</span></button>' +
       '<button class="static-secondary-btn" type="button" onclick="resetNav_(showHomeChoice_)"><span>กลับหน้าแรก</span></button>' +
     '</div>';
 }

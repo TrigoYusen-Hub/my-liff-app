@@ -1290,6 +1290,71 @@ footer {
   margin: 0;
 }
 
+.access-request-btn {
+  margin-top: 2.5vh;
+  padding: 1.2vh 3vh;
+  background: #0E4F8C;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 1.9vh;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.access-request-form {
+  margin-top: 2vh;
+  width: 100%;
+  text-align: left;
+}
+
+.access-request-form label {
+  display: block;
+  font-size: 1.6vh;
+  color: #5a6472;
+  margin: 1.5vh 0 0.6vh;
+  font-weight: 600;
+}
+
+.access-request-form input {
+  width: 100%;
+  padding: 1.2vh 1.4vh;
+  border: 1px solid #d5dae1;
+  border-radius: 8px;
+  font-size: 1.9vh;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.access-request-form button {
+  margin-top: 2vh;
+  width: 100%;
+  padding: 1.3vh;
+  background: #0E4F8C;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1.9vh;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.access-request-form button:disabled {
+  opacity: 0.6;
+}
+
+.access-request-status {
+  margin-top: 1.5vh;
+  font-size: 1.6vh;
+  color: #2c6e1f;
+}
+
+.access-request-status.err {
+  color: #a12525;
+}
+
 .error-raw-scan {
   color: #999999;
   font-size: 1.5vh;
@@ -2202,9 +2267,64 @@ function showUnauthorizedView() {
           <span>ไม่ได้รับอนุญาต</span>
         </h2>
         <p class="error-text">บัญชี LINE นี้ยังไม่ได้ลงทะเบียน<br>เป็นพนักงานในระบบ<br>กรุณาติดต่อหัวหน้างาน</p>
+        <button type="button" class="access-request-btn" id="accessRequestBtn" onclick="showAccessRequestForm_()">ร้องขอการเข้าถึง</button>
       </section>
     </div>
   `;
+}
+
+function showAccessRequestForm_() {
+  var btn = document.getElementById("accessRequestBtn");
+  if (!btn) return;
+
+  var wrap = document.createElement("div");
+  wrap.className = "access-request-form";
+  wrap.innerHTML =
+    '<label>ชื่อ-นามสกุล</label><input type="text" id="arName">' +
+    '<label>รหัสพนักงาน</label><input type="text" id="arCode">' +
+    '<button type="button" id="arSubmitBtn">ยืนยัน</button>' +
+    '<p class="access-request-status" id="arStatus"></p>';
+  btn.replaceWith(wrap);
+
+  document.getElementById("arSubmitBtn").addEventListener("click", function() {
+    var name = document.getElementById("arName").value.trim();
+    var code = document.getElementById("arCode").value.trim();
+    var statusEl = document.getElementById("arStatus");
+
+    if (!name || !code) {
+      statusEl.className = "access-request-status err";
+      statusEl.textContent = "กรุณากรอกให้ครบ";
+      return;
+    }
+
+    var submitBtn = document.getElementById("arSubmitBtn");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "กำลังส่ง...";
+
+    api("requestAccess", {
+      payload: {
+        lineUserId: currentLineUserId,
+        lineDisplayName: currentLineDisplayName,
+        typedName: name,
+        employeeCode: code,
+        appName: "Hub"
+      }
+    }).then(function(res) {
+      if (res && res.ok) {
+        wrap.innerHTML = '<p class="access-request-status">ส่งคำขอแล้ว รอการติดต่อกลับ</p>';
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "ยืนยัน";
+        statusEl.className = "access-request-status err";
+        statusEl.textContent = (res && res.error) || "ส่งไม่สำเร็จ";
+      }
+    }).catch(function() {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "ยืนยัน";
+      statusEl.className = "access-request-status err";
+      statusEl.textContent = "เชื่อมต่อไม่สำเร็จ";
+    });
+  });
 }
 
 function openFeaturePage_(titleText) {

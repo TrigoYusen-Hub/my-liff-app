@@ -389,6 +389,40 @@ body {
   margin: 0;
 }
 
+.access-request-form {
+  margin-top: 1vh;
+  width: 100%;
+  text-align: left;
+}
+
+.access-request-form label {
+  display: block;
+  font-size: 1.6vh;
+  color: #5a6472;
+  margin: 1.5vh 0 0.6vh;
+  font-weight: 600;
+}
+
+.access-request-form input {
+  width: 100%;
+  padding: 1.2vh 1.4vh;
+  border: 1px solid #d5dae1;
+  border-radius: 8px;
+  font-size: 1.9vh;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.access-request-status {
+  margin-top: 1.5vh;
+  font-size: 1.6vh;
+  color: #2c6e1f;
+}
+
+.access-request-status.err {
+  color: #a12525;
+}
+
 .static-primary-btn {
   width: 319px;
   max-width: calc(100% - 32px);
@@ -1275,8 +1309,63 @@ function showUnauthorizedView() {
         bigXIcon() +
         '<h2 class="error-title">' + smallXIcon() + '<span>ไม่ได้รับอนุญาต</span></h2>' +
         '<p class="error-text">บัญชี LINE นี้ยังไม่ได้ลงทะเบียน<br>เป็นพนักงานในระบบ<br>กรุณาติดต่อหัวหน้างาน</p>' +
+        '<button type="button" class="static-primary-btn" id="accessRequestBtn" onclick="showAccessRequestForm_()" style="height:auto;padding:1.2vh 3vh;">ร้องขอการเข้าถึง</button>' +
       '</section>' +
     '</div>';
+}
+
+function showAccessRequestForm_() {
+  var btn = document.getElementById("accessRequestBtn");
+  if (!btn) return;
+
+  var wrap = document.createElement("div");
+  wrap.className = "access-request-form";
+  wrap.innerHTML =
+    '<label>ชื่อ-นามสกุล</label><input type="text" id="arName">' +
+    '<label>รหัสพนักงาน</label><input type="text" id="arCode">' +
+    '<button type="button" class="static-primary-btn" id="arSubmitBtn" style="height:auto;padding:1.2vh;">ยืนยัน</button>' +
+    '<p class="access-request-status" id="arStatus"></p>';
+  btn.replaceWith(wrap);
+
+  document.getElementById("arSubmitBtn").addEventListener("click", function() {
+    var name = document.getElementById("arName").value.trim();
+    var code = document.getElementById("arCode").value.trim();
+    var statusEl = document.getElementById("arStatus");
+
+    if (!name || !code) {
+      statusEl.className = "access-request-status err";
+      statusEl.textContent = "กรุณากรอกให้ครบ";
+      return;
+    }
+
+    var submitBtn = document.getElementById("arSubmitBtn");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "กำลังส่ง...";
+
+    api("requestAccess", {
+      payload: {
+        lineUserId: currentLineUserId,
+        lineDisplayName: "",
+        typedName: name,
+        employeeCode: code,
+        appName: "Dashboard"
+      }
+    }).then(function(res) {
+      if (res && res.ok) {
+        wrap.innerHTML = '<p class="access-request-status">ส่งคำขอแล้ว รอการติดต่อกลับ</p>';
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "ยืนยัน";
+        statusEl.className = "access-request-status err";
+        statusEl.textContent = (res && res.error) || "ส่งไม่สำเร็จ";
+      }
+    }).catch(function() {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "ยืนยัน";
+      statusEl.className = "access-request-status err";
+      statusEl.textContent = "เชื่อมต่อไม่สำเร็จ";
+    });
+  });
 }
 
 function escapeHtml(value) {
