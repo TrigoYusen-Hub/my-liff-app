@@ -256,6 +256,20 @@ body {
   padding: 2.4vh 16px 4vh;
 }
 
+.result-view {
+  padding: 2.4vh 16px 4vh;
+}
+
+.emp-time-row {
+  display: flex;
+  gap: 16px;
+  max-width: 320px;
+}
+
+.emp-time-row .emp-time-field {
+  flex: 1 1 0;
+}
+
 .picker-page.has-sticky-footer {
   padding-bottom: 19vh;
 }
@@ -2928,8 +2942,10 @@ function showSupportTimeEntry_() {
   var rowsHtml = waitForWorkState_.supportEmployees.map(function(e, idx) {
     return '<div style="margin-top:1.6vh;padding-top:1.4vh;border-top:1px solid #eef1f5;">' +
       '<p class="picker-context" style="margin:0 0 0.6vh;font-weight:700;">' + escapeHtml(e.employeeName) + '</p>' +
-      '<div class="emp-time-field"><label>เริ่ม</label><input type="time" value="' + e.startTime + '" oninput="updateSupportTimeEntry_(' + idx + ', this.value, null)"></div>' +
-      '<div class="emp-time-field"><label>ถึง</label><input type="time" value="' + e.endTime + '" oninput="updateSupportTimeEntry_(' + idx + ', null, this.value)"></div>' +
+      '<div class="emp-time-row">' +
+        '<div class="emp-time-field"><label>เริ่ม</label><input type="time" value="' + e.startTime + '" oninput="updateSupportTimeEntry_(' + idx + ', this.value, null)"></div>' +
+        '<div class="emp-time-field"><label>ถึง</label><input type="time" value="' + e.endTime + '" oninput="updateSupportTimeEntry_(' + idx + ', null, this.value)"></div>' +
+      '</div>' +
     '</div>';
   }).join("");
 
@@ -2972,8 +2988,10 @@ function showWaitForWorkTimeEntry_() {
     '<div class="result-view">' +
       '<p class="picker-context">วันที่ : ' + escapeHtml(waitForWorkState_.dateLabel) + '</p>' +
       '<p class="picker-context">Mission : ' + escapeHtml(waitForWorkState_.mission) + '</p>' +
-      '<div class="emp-time-field"><label>เริ่มรองาน</label><input type="time" id="wfwStartInput" value="08:00" oninput="updateWaitForWorkForm_()"></div>' +
-      '<div class="emp-time-field"><label>ถึง</label><input type="time" id="wfwEndInput" value="09:00" oninput="updateWaitForWorkForm_()"></div>' +
+      '<div class="emp-time-row">' +
+        '<div class="emp-time-field"><label>เริ่มรองาน</label><input type="time" id="wfwStartInput" value="08:00" oninput="updateWaitForWorkForm_()"></div>' +
+        '<div class="emp-time-field"><label>ถึง</label><input type="time" id="wfwEndInput" value="09:00" oninput="updateWaitForWorkForm_()"></div>' +
+      '</div>' +
       '<p class="defect-sum-status" id="wfwStatus"></p>' +
       '<button id="wfwSubmitBtn" class="static-primary-btn" type="button" onclick="submitWaitForWork_()">' + checkCircleWhiteIcon() + '<span>บันทึก</span></button>' +
     '</div>';
