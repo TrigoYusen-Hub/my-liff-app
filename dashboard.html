@@ -1155,9 +1155,13 @@ function hideLoadingOverlay_() {
   if (overlay) overlay.classList.remove("show");
 }
 
+// นับคำขอที่ยังค้าง -- หน้า Home ยิง 4 ตัวพร้อมกัน ตัวหมุนต้องอยู่จนตัวสุดท้ายเสร็จ
+var apiInFlight_ = 0;
+
 async function api(action, extra) {
   var body = Object.assign({ action: action }, extra || {});
 
+  apiInFlight_++;
   showLoadingOverlay_();
 
   try {
@@ -1169,7 +1173,8 @@ async function api(action, extra) {
 
     return await res.json();
   } finally {
-    hideLoadingOverlay_();
+    apiInFlight_ = Math.max(0, apiInFlight_ - 1);
+    if (apiInFlight_ === 0) hideLoadingOverlay_();
   }
 }
 

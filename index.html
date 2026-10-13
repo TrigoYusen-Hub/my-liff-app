@@ -2215,9 +2215,13 @@ function hideCreditsPopup_() {
   if (overlay) overlay.classList.remove("show");
 }
 
+// นับคำขอที่ยังค้าง -- ยิงหลายตัวพร้อมกัน ตัวหมุนต้องอยู่จนตัวสุดท้ายเสร็จ (กันกดปุ่มระหว่างโหลด)
+var apiInFlight_ = 0;
+
 async function api(action, extra) {
   var body = Object.assign({ action: action }, extra || {});
 
+  apiInFlight_++;
   showLoadingOverlay_();
 
   try {
@@ -2229,8 +2233,67 @@ async function api(action, extra) {
 
     return await res.json();
   } finally {
-    hideLoadingOverlay_();
+    apiInFlight_ = Math.max(0, apiInFlight_ - 1);
+    if (apiInFlight_ === 0) hideLoadingOverlay_();
   }
+}
+
+var PENDING_REPORT_SYNC_KEY_ = "trigo_pending_report_sync";
+var PENDING_REPORT_SYNC_MAX_TRIES_ = 5;
+
+function readPendingReportSyncs_() {
+  try {
+    var list = JSON.parse(localStorage.getItem(PENDING_REPORT_SYNC_KEY_) || "[]");
+    return Array.isArray(list) ? list : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writePendingReportSyncs_(list) {
+  try { localStorage.setItem(PENDING_REPORT_SYNC_KEY_, JSON.stringify(list)); } catch (e) {}
+}
+
+// อัพเดทไฟล์ใบงานเบื้องหลัง ไม่ให้คนกดบันทึกต้องรอ -- จดค้างไว้จนเซิร์ฟเวอร์ตอบสำเร็จ ถ้าหลุดจะส่งซ้ำตอนเปิดแอพครั้งหน้า
+function queueReportSync_(mission, dateStr) {
+  if (!mission || !dateStr) return;
+  var key = mission + "|" + dateStr;
+  var id = key + "#" + Date.now();
+  var list = readPendingReportSyncs_().filter(function(p) { return p.key !== key; });
+  list.push({ id: id, key: key, mission: mission, dateStr: dateStr, tries: 0 });
+  writePendingReportSyncs_(list);
+  sendReportSync_(id);
+}
+
+function sendReportSync_(id) {
+  var list = readPendingReportSyncs_();
+  var item = list.find(function(p) { return p.id === id; });
+  if (!item) return;
+  item.tries = (item.tries || 0) + 1;
+  writePendingReportSyncs_(list);
+
+  fetch(GAS_API, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action: "syncMissionReport", mission: item.mission, dateStr: item.dateStr, lineUserId: currentLineUserId }),
+    keepalive: true
+  }).then(function(res) {
+    return res.json();
+  }).then(function(data) {
+    if (data && data.ok) {
+      writePendingReportSyncs_(readPendingReportSyncs_().filter(function(p) { return p.id !== id; }));
+    }
+  }).catch(function() {});
+}
+
+function flushPendingReportSyncs_() {
+  readPendingReportSyncs_().forEach(function(p) {
+    if ((p.tries || 0) >= PENDING_REPORT_SYNC_MAX_TRIES_) {
+      writePendingReportSyncs_(readPendingReportSyncs_().filter(function(q) { return q.id !== p.id; }));
+      return;
+    }
+    sendReportSync_(p.id);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", async function () {
@@ -2328,6 +2391,7 @@ function loadInitialData() {
         showUnauthorizedView();
       } else if (data && data.employee && data.employee.employeeId) {
         if (userSub) userSub.textContent = data.employee.employeeId;
+        flushPendingReportSyncs_();
 
         var spinner = document.getElementById("userSpinner");
         var statusDot = document.getElementById("statusDot");
@@ -3909,7 +3973,8 @@ function applyDailyWorkScanOption_(opt) {
   dailyWorkState.isRecheck = !!opt.isRecheck;
   dailyWorkState.receivedTotal = (opt.isRecheck || isRework) ? 0 : opt.receivedTotal;
   dailyWorkState.remaining = (opt.isRecheck || isRework) ? 0 : opt.remaining;
-  dailyWorkState.defects = undefined;
+  // ผลสแกนรุ่นใหม่แนบ defect ของมิชชั่นนี้มาแล้ว -- undefined = ให้หน้ากรอกยอดดึงเองแบบเดิม
+  dailyWorkState.defects = Array.isArray(opt.defects) ? opt.defects : undefined;
   dailyWorkState.defectBreakdown = {};
   dailyWorkState.lotCode = opt.lotCode || "";
 
@@ -4115,12 +4180,22 @@ async function onDailyWorkManualPartChange_() {
   setBatchComboOptions_("dw", []);
 
   if (partNumber) {
-    try {
-      var res = await api("getPartDefects", { partNumber: partNumber, mission: mission });
-      dwManualDefects_ = (res && res.ok && res.defects) ? res.defects : [];
-    } catch (e) {
-      dwManualDefects_ = [];
+    // defect กับ Batch ไม่ขึ้นต่อกัน -- ยิงพร้อมกัน (วัดจริง: ทีละตัว 4.0-5.9 วิ, พร้อมกัน 1.6-2.2 วิ)
+    var results = await Promise.all([
+      api("getPartDefects", { partNumber: partNumber, mission: mission }).catch(function() { return null; }),
+      api("getBatchOptions", { partNumber: partNumber }).catch(function() { return null; })
+    ]);
+
+    // เปลี่ยน Part/มิชชั่น หรือออกจากหน้านี้ระหว่างรอ -- ทิ้งผลชุดเก่า ไม่ให้ทับของใหม่
+    var partEl = document.getElementById("dwManualPartNumber");
+    var missionEl = document.getElementById("dwManualMission");
+    if (!partEl || !missionEl || partEl.value !== partNumber || missionEl.value !== mission) {
+      return;
     }
+    wrap = document.getElementById("defectSectionWrap");
+
+    var res = results[0];
+    dwManualDefects_ = (res && res.ok && res.defects) ? res.defects : [];
     if (wrap) wrap.innerHTML = (isRework || hasFixableDefects_(dwManualDefects_)) ? renderReworkDefectSectionHtml_(dwManualDefects_) : renderDefectSectionHtml_(dwManualDefects_);
 
     // งาน Recheck ไม่ผูกกับ Inventory เลย เลือก Batch ไหนก็ได้ที่มีของ Part
@@ -4128,12 +4203,7 @@ async function onDailyWorkManualPartChange_() {
     // (แค่โชว์ Batch ที่เคยพิมพ์ไปแล้วเป็นตัวเลือกลัด ไม่ได้กรองด้วย remaining
     // เพราะ Rework ไม่มีเพดานยอดคงเหลือ ดู logDailyWork_ ฝั่ง backend)
     if (isRecheck || isRework) {
-      var recheckRes;
-      try {
-        recheckRes = await api("getBatchOptions", { partNumber: partNumber });
-      } catch (e) {
-        recheckRes = { ok: false, options: [] };
-      }
+      var recheckRes = results[1] || { ok: false, options: [] };
       var recheckBatches = (recheckRes && recheckRes.ok && recheckRes.options) ? recheckRes.options.map(function(b) {
         // Rework: โชว์เลข Batch ปกติ (ตัด (Rework) ออก) แล้วเอามาลบซ้ำ -- ฝั่ง
         // server จะใส่ (Rework) ให้เองตอนบันทึก
@@ -4149,12 +4219,7 @@ async function onDailyWorkManualPartChange_() {
       }
       setBatchComboOptions_("dw", recheckBatches);
     } else {
-      var batchRes;
-      try {
-        batchRes = await api("getBatchOptions", { partNumber: partNumber });
-      } catch (e) {
-        batchRes = { ok: false, options: [] };
-      }
+      var batchRes = results[1] || { ok: false, options: [] };
 
       // ยอดงานรายวัน: เฉพาะ Batch ที่ยังมีงานเหลือให้ทำ
       var batches = (batchRes && batchRes.ok && batchRes.options) ? batchRes.options.filter(function(b) {
@@ -4577,10 +4642,12 @@ function saveDailyWork_() {
       endTime: dailyWorkState.endTime || "",
       lotCode: dailyWorkState.lotCode || "",
       printQr: !!(printQrCheckbox && printQrCheckbox.checked),
-      lineUserId: currentLineUserId
+      lineUserId: currentLineUserId,
+      deferSync: true
     }
   }).then(function(data) {
     if (data && data.ok) {
+      queueReportSync_(data.mission, data.dateStr);
       gotoSuccess_(function() { showDailyWorkSuccess_(data); });
       return;
     }

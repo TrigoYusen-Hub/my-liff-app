@@ -1801,9 +1801,13 @@ function hideLoadingOverlay_() {
   if (overlay) overlay.classList.remove("show");
 }
 
+// นับคำขอที่ยังค้าง -- ยิงหลายตัวพร้อมกัน ตัวหมุนต้องอยู่จนตัวสุดท้ายเสร็จ (กันกดปุ่มระหว่างโหลด)
+var apiInFlight_ = 0;
+
 async function api(action, extra) {
   var body = Object.assign({ action: action }, extra || {});
 
+  apiInFlight_++;
   showLoadingOverlay_();
 
   try {
@@ -1815,8 +1819,67 @@ async function api(action, extra) {
 
     return await res.json();
   } finally {
-    hideLoadingOverlay_();
+    apiInFlight_ = Math.max(0, apiInFlight_ - 1);
+    if (apiInFlight_ === 0) hideLoadingOverlay_();
   }
+}
+
+var PENDING_REPORT_SYNC_KEY_ = "trigo_pending_report_sync";
+var PENDING_REPORT_SYNC_MAX_TRIES_ = 5;
+
+function readPendingReportSyncs_() {
+  try {
+    var list = JSON.parse(localStorage.getItem(PENDING_REPORT_SYNC_KEY_) || "[]");
+    return Array.isArray(list) ? list : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writePendingReportSyncs_(list) {
+  try { localStorage.setItem(PENDING_REPORT_SYNC_KEY_, JSON.stringify(list)); } catch (e) {}
+}
+
+// อัพเดทไฟล์ใบงานเบื้องหลัง ไม่ให้คนกดบันทึกต้องรอ -- จดค้างไว้จนเซิร์ฟเวอร์ตอบสำเร็จ ถ้าหลุดจะส่งซ้ำตอนเปิดแอพครั้งหน้า
+function queueReportSync_(mission, dateStr) {
+  if (!mission || !dateStr) return;
+  var key = mission + "|" + dateStr;
+  var id = key + "#" + Date.now();
+  var list = readPendingReportSyncs_().filter(function(p) { return p.key !== key; });
+  list.push({ id: id, key: key, mission: mission, dateStr: dateStr, tries: 0 });
+  writePendingReportSyncs_(list);
+  sendReportSync_(id);
+}
+
+function sendReportSync_(id) {
+  var list = readPendingReportSyncs_();
+  var item = list.find(function(p) { return p.id === id; });
+  if (!item) return;
+  item.tries = (item.tries || 0) + 1;
+  writePendingReportSyncs_(list);
+
+  fetch(GAS_API, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action: "syncMissionReport", mission: item.mission, dateStr: item.dateStr, lineUserId: currentLineUserId }),
+    keepalive: true
+  }).then(function(res) {
+    return res.json();
+  }).then(function(data) {
+    if (data && data.ok) {
+      writePendingReportSyncs_(readPendingReportSyncs_().filter(function(p) { return p.id !== id; }));
+    }
+  }).catch(function() {});
+}
+
+function flushPendingReportSyncs_() {
+  readPendingReportSyncs_().forEach(function(p) {
+    if ((p.tries || 0) >= PENDING_REPORT_SYNC_MAX_TRIES_) {
+      writePendingReportSyncs_(readPendingReportSyncs_().filter(function(q) { return q.id !== p.id; }));
+      return;
+    }
+    sendReportSync_(p.id);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", async function () {
@@ -1870,6 +1933,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     return;
   }
 
+  flushPendingReportSyncs_();
   goto_(showHomeChoice_);
 });
 
@@ -3695,10 +3759,12 @@ function saveInspectEdit_() {
       startTime: startTime,
       endTime: endTime,
       defectBreakdown: defectBreakdown,
-      targetEmployeeId: inspectEditTargetEmployeeId_ || ""
+      targetEmployeeId: inspectEditTargetEmployeeId_ || "",
+      deferSync: true
     }
   }).then(function(data) {
     if (data && data.ok) {
+      queueReportSync_(data.mission, data.dateStr);
       alert("บันทึกการแก้ไขเรียบร้อย");
       goto_(showInspectMissionList_);
       return;
@@ -3735,10 +3801,12 @@ function removeInspectEntry_() {
       mission: inspectState_.currentMission.mission,
       partNumber: inspectEditEntry_.partNumber,
       batch: inspectEditEntry_.batch,
-      targetEmployeeId: inspectEditTargetEmployeeId_ || ""
+      targetEmployeeId: inspectEditTargetEmployeeId_ || "",
+      deferSync: true
     }
   }).then(function(data) {
     if (data && data.ok) {
+      queueReportSync_(data.mission, data.dateStr);
       alert("ลบออกจากมิชชั่นเรียบร้อย");
       goto_(showInspectMissionList_);
       return;
@@ -3832,10 +3900,12 @@ function saveAddMissionParticipant_() {
       partNumber: firstBatch.partNumber,
       batch: firstBatch.batch,
       startTime: start,
-      endTime: end
+      endTime: end,
+      deferSync: true
     }
   }).then(function(data) {
     if (data && data.ok) {
+      queueReportSync_(data.mission, data.dateStr);
       alert("เพิ่มพนักงานเรียบร้อย");
       goto_(showInspectWorkOrder_);
       return;
