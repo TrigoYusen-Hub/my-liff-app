@@ -755,6 +755,7 @@ footer {
   position: fixed;
   inset: 0;
   z-index: 9997;
+  overflow: hidden;
   background: #000000;
   display: flex;
   flex-direction: column;
@@ -785,11 +786,40 @@ footer {
   border-color: #ffffff;
 }
 
+.scan-overlay-tools {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(12vh + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.scan-overlay-tool {
+  min-width: 56px;
+  height: 44px;
+  padding: 0 12px;
+  border: 2px solid rgba(255,255,255,.85);
+  border-radius: 22px;
+  background: rgba(0,0,0,.45);
+  color: #ffffff;
+  font-family: "Kanit", "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.scan-overlay-tool.on {
+  background: #ffffff;
+  color: #000000;
+}
+
 .scan-overlay-hint {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 16vh;
+  bottom: calc(12vh + 60px + env(safe-area-inset-bottom, 0px));
   margin: 0;
   text-align: center;
   color: #ffffff;
@@ -2132,7 +2162,7 @@ footer {
       <div class="footer-divider"></div>
       <div class="footer-brand-wrap">
         <div class="footer-brand">TRIGO YUSEN HUB</div>
-        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.1.0<br>&copy; 2026 TRIGO</div>
+        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.2.0<br>&copy; 2026 TRIGO</div>
       </div>
     </footer>
 </main>
@@ -2149,7 +2179,7 @@ footer {
     </button>
     <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
     <div class="credits-title">TRIGO YUSEN HUB</div>
-    <div class="credits-version">Version 3.1.0</div>
+    <div class="credits-version">Version 3.2.0</div>
     <div class="credits-divider"></div>
     <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>เพื่อใช้ในการบันทึกข้อมูลงาน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
     <div class="credits-divider"></div>
@@ -2651,7 +2681,7 @@ window.addEventListener("popstate", function() {
 
     if (!cb) {
       scanCancelledByUser_ = true;
-      if (codeReader_) { try { codeReader_.reset(); } catch (e) {} codeReader_ = null; }
+      if (scanSession_) scanSession_.done = true;
     }
 
     closeFullscreenScanOverlay_();
@@ -2728,11 +2758,189 @@ function showScanView() {
   `;
 }
 
-var codeReader_ = null;
 var scanCancelledByUser_ = false;
 var activeScanHandler_ = null;
 var activeScanView_ = null;
 var pendingOverlayCloseCallback_ = null;
+
+// ---- กล้องสแกน: ภาพความละเอียดสูง + โฟกัสต่อเนื่อง + ซูม/ไฟฉาย + ตัวอ่านบาร์โค้ดของเครื่อง (ถ้ามี)
+// เปิดกล้องครั้งเดียวแล้วเก็บไว้ใช้ซ้ำ (LINE จะได้ไม่ถามสิทธิ์กล้องใหม่ทุกรอบที่สแกน) ไม่ได้สแกน
+// เกิน 3 นาทีค่อยปิดจริง -- เทียบกับแบบเดิมบนมือถือจริงผ่านหน้า scan-test ก่อนย้ายมาใช้
+var SCAN_IDLE_STOP_MS_ = 3 * 60 * 1000;
+var scanCam_ = { stream: null, track: null, caps: {}, idleTimer: null, zoom: 1, hwZoom: false, torchOn: false };
+var scanSession_ = null;
+var scanNativeDetector_ = null;
+var scanNativeChecked_ = false;
+var scanZxReader_ = null;
+
+async function initScanNativeDetector_() {
+  if (scanNativeChecked_) return;
+  scanNativeChecked_ = true;
+  if (!("BarcodeDetector" in window)) return;
+  try {
+    var supported = await BarcodeDetector.getSupportedFormats();
+    var formats = ["qr_code", "data_matrix"].filter(function(f) { return supported.indexOf(f) !== -1; });
+    if (formats.length) scanNativeDetector_ = new BarcodeDetector({ formats: formats });
+  } catch (e) {
+    scanNativeDetector_ = null;
+  }
+}
+
+async function ensureScanCamera_() {
+  clearTimeout(scanCam_.idleTimer);
+  if (scanCam_.track && scanCam_.track.readyState === "live") {
+    scanCam_.track.enabled = true;
+    return;
+  }
+  var stream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+  });
+  scanCam_.stream = stream;
+  scanCam_.track = stream.getVideoTracks()[0];
+  scanCam_.caps = (scanCam_.track.getCapabilities && scanCam_.track.getCapabilities()) || {};
+  scanCam_.zoom = 1;
+  scanCam_.hwZoom = false;
+  scanCam_.torchOn = false;
+  if (scanCam_.caps.focusMode && scanCam_.caps.focusMode.indexOf("continuous") !== -1) {
+    try { await scanCam_.track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }); } catch (e) {}
+  }
+}
+
+// สแกนเสร็จ/ยกเลิก: หยุดส่งภาพไว้ก่อน (ยังถือสิทธิ์กล้องอยู่) ครบ 3 นาทีค่อยปิดจริง
+function parkScanCamera_() {
+  if (scanCam_.track && scanCam_.torchOn) {
+    scanCam_.track.applyConstraints({ advanced: [{ torch: false }] }).catch(function() {});
+  }
+  scanCam_.torchOn = false;
+  if (scanCam_.track) scanCam_.track.enabled = false;
+  clearTimeout(scanCam_.idleTimer);
+  scanCam_.idleTimer = setTimeout(releaseScanCamera_, SCAN_IDLE_STOP_MS_);
+}
+
+function releaseScanCamera_() {
+  clearTimeout(scanCam_.idleTimer);
+  if (scanCam_.stream) scanCam_.stream.getTracks().forEach(function(t) { t.stop(); });
+  scanCam_.stream = null;
+  scanCam_.track = null;
+  scanCam_.torchOn = false;
+}
+
+// ซูมด้วยกล้องจริงถ้าเครื่องรองรับ ไม่งั้นขยายภาพบนจอ แล้วอ่านเฉพาะกลางภาพแทน (ผลเหมือนกัน)
+async function applyScanZoom_(video, z) {
+  scanCam_.zoom = z;
+  var zc = scanCam_.caps.zoom;
+  if (zc && typeof zc.max === "number" && zc.max > 1) {
+    try {
+      await scanCam_.track.applyConstraints({ advanced: [{ zoom: Math.max(zc.min || 1, Math.min(zc.max, z)) }] });
+      scanCam_.hwZoom = true;
+      video.style.transform = "";
+      return;
+    } catch (e) {}
+  }
+  scanCam_.hwZoom = false;
+  video.style.transform = z > 1 ? "scale(" + z + ")" : "";
+}
+
+function renderScanTools_(video) {
+  var box = document.getElementById("scanOverlayTools");
+  if (!box) return;
+  var html = [1, 2, 3].map(function(z) {
+    return '<button type="button" class="scan-overlay-tool' + (scanCam_.zoom === z ? " on" : "") + '" data-zoom="' + z + '">' + z + 'x</button>';
+  }).join("");
+  if (scanCam_.caps.torch) {
+    html += '<button type="button" class="scan-overlay-tool' + (scanCam_.torchOn ? " on" : "") + '" data-torch="1">ไฟฉาย</button>';
+  }
+  box.innerHTML = html;
+  box.onclick = async function(ev) {
+    var b = ev.target.closest("button");
+    if (!b || !scanCam_.track) return;
+    if (b.getAttribute("data-zoom")) {
+      await applyScanZoom_(video, Number(b.getAttribute("data-zoom")));
+    } else if (b.getAttribute("data-torch")) {
+      scanCam_.torchOn = !scanCam_.torchOn;
+      try { await scanCam_.track.applyConstraints({ advanced: [{ torch: scanCam_.torchOn }] }); } catch (e) { scanCam_.torchOn = false; }
+    }
+    renderScanTools_(video);
+  };
+}
+
+// ตัดเฉพาะกลางภาพ (ตรงกรอบเล็ง) มาอ่านที่ความละเอียดเต็ม -- ถ้าซูมแบบขยายภาพ กรอบจะเล็กลงตามซูม
+function cropScanCenter_(video, canvas, digitalZoom, maxSide) {
+  var w = video.videoWidth, h = video.videoHeight;
+  if (!w || !h) return false;
+  var side = Math.min(w, h) * 0.8 / (digitalZoom || 1);
+  var out = Math.round(Math.min(side, maxSide || side));
+  canvas.width = out;
+  canvas.height = out;
+  canvas.getContext("2d", { willReadFrequently: true }).drawImage(video, (w - side) / 2, (h - side) / 2, side, side, 0, 0, out, out);
+  return true;
+}
+
+// แปลงเป็นขาวดำเอง -- HTMLCanvasElementLuminanceSource ของ ZXing รุ่นนี้กลับสีภาพทุกครั้งเว้นครั้ง
+// (เฟรมครึ่งหนึ่งเสียไปกับภาพกลับสี) ที่นี่อ่านแบบปกติทุกเฟรม ลองแบบกลับสีแค่ทุกเฟรมที่ 4 เผื่อ Tag พื้นดำ
+function zxDecodeScanCanvas_(canvas, frameNo) {
+  if (!scanZxReader_) {
+    scanZxReader_ = new ZXing.MultiFormatReader();
+    var hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    scanZxReader_.setHints(hints);
+  }
+  var w = canvas.width, h = canvas.height;
+  var px = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  var lum = new Uint8ClampedArray(w * h);
+  for (var i = 0, j = 0; i < px.length; i += 4, j++) {
+    lum[j] = (306 * px[i] + 601 * px[i + 1] + 117 * px[i + 2] + 0x200) >> 10;
+  }
+  var src = new ZXing.RGBLuminanceSource(lum, w, h);
+  if (frameNo % 4 === 3) src = new ZXing.InvertedLuminanceSource(src);
+  try {
+    return scanZxReader_.decodeWithState(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src))).getText();
+  } catch (e) {
+    return null;
+  }
+}
+
+// ตัวอ่านของเครื่อง (ส่วนใหญ่ Android) ลองกลางภาพกับทั้งภาพสลับกัน -- ไม่มี/พัง ใช้ ZXing แทน
+async function decodeScanFrame_(video, canvas, frameNo) {
+  var digital = scanCam_.hwZoom ? 1 : scanCam_.zoom;
+  if (scanNativeDetector_) {
+    try {
+      var target = (frameNo % 2 === 0 && cropScanCenter_(video, canvas, digital)) ? canvas : video;
+      var codes = await scanNativeDetector_.detect(target);
+      return (codes && codes.length && codes[0].rawValue) ? codes[0].rawValue : null;
+    } catch (e) {
+      scanNativeDetector_ = null;
+    }
+  }
+  if (!cropScanCenter_(video, canvas, digital, 1000)) return null;
+  return zxDecodeScanCanvas_(canvas, frameNo);
+}
+
+// วนอ่านจนเจอ หรือจนถูกยกเลิก (คืน null)
+async function runScanLoop_(session, video) {
+  var canvas = document.createElement("canvas");
+  var frame = 0;
+  while (!session.done) {
+    if (!scanCam_.track || scanCam_.track.readyState !== "live") throw new Error("กล้องหยุดทำงาน กรุณาลองใหม่");
+    if (video.readyState >= 2) {
+      frame++;
+      var text = await decodeScanFrame_(video, canvas, frame);
+      if (text && !session.done) return text;
+    }
+    await new Promise(function(r) { setTimeout(r, scanNativeDetector_ ? 50 : 20); });
+  }
+  return null;
+}
+
+function scanErrorText_(e) {
+  var n = e && e.name;
+  if (n === "NotAllowedError") return "ไม่ได้รับอนุญาตใช้กล้อง กรุณาอนุญาตการใช้กล้องให้ LINE";
+  if (n === "NotFoundError" || n === "OverconstrainedError") return "ไม่พบกล้องของเครื่อง";
+  if (n === "NotReadableError") return "กล้องถูกใช้งานอยู่ในแอพอื่น";
+  return e && e.message ? e.message : String(e);
+}
 
 function openFullscreenScanOverlay_() {
   var overlay = document.createElement("div");
@@ -2745,6 +2953,7 @@ function openFullscreenScanOverlay_() {
       '<span class="scan-corner bl"></span><span class="scan-corner br"></span>' +
     '</div>' +
     '<p class="scan-overlay-hint">เล็งกล้องไปที่ QR Code หรือ Tag</p>' +
+    '<div class="scan-overlay-tools" id="scanOverlayTools"></div>' +
     '<button class="scan-overlay-cancel-btn" type="button" onclick="history.back()">ยกเลิก</button>';
   document.body.appendChild(overlay);
   // push history state ไว้ 1 ชั้น ให้ปุ่มเครื่อง/ปุ่มยกเลิกปิด overlay นี้ได้
@@ -2772,35 +2981,36 @@ async function startScan() {
     return;
   }
 
+  if (scanSession_) return;
+
   scanCancelledByUser_ = false;
   openFullscreenScanOverlay_();
+  var session = scanSession_ = { done: false };
+  var video = document.getElementById("scanVideoFullscreen");
 
   try {
 
-    var hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXing.BarcodeFormat.QR_CODE,
-      ZXing.BarcodeFormat.DATA_MATRIX
-    ]);
+    await initScanNativeDetector_();
+    await ensureScanCamera_();
+    if (session.done) return;
 
-    codeReader_ = new ZXing.BrowserMultiFormatReader(hints);
+    video.srcObject = scanCam_.stream;
+    try { await video.play(); } catch (playErr) {}
+    await applyScanZoom_(video, 1);
+    renderScanTools_(video);
 
-    var result = await codeReader_.decodeOnceFromConstraints(
-      { video: { facingMode: "environment" } },
-      "scanVideoFullscreen"
-    );
+    var text = await runScanLoop_(session, video);
+    // ถูกยกเลิก (ปุ่มยกเลิก/ปุ่มเครื่อง) — popstate handler ปิด overlay ไปแล้ว
+    if (text === null) return;
 
-    codeReader_ = null;
-    var text = result.getText();
-
+    if (navigator.vibrate) navigator.vibrate(60);
     closeFullscreenScanOverlayViaBack_(function() {
       (activeScanHandler_ || handleScanResult_)(text);
     });
 
   } catch (e) {
 
-    var wasCancelled = scanCancelledByUser_;
-    codeReader_ = null;
+    var wasCancelled = scanCancelledByUser_ || session.done;
 
     // ถ้า overlay ถูกปิดไปแล้ว (ผู้ใช้กดยกเลิก/ปุ่มเครื่องระหว่างสแกน) ก็ไม่
     // ต้องทำอะไรต่อ — popstate handler จัดการไปแล้ว
@@ -2808,20 +3018,26 @@ async function startScan() {
       closeFullscreenScanOverlayViaBack_(function() {
         if (!wasCancelled) {
           console.log(e);
-          alert("สแกนไม่สำเร็จ: " + (e && e.message ? e.message : e));
+          alert("สแกนไม่สำเร็จ: " + scanErrorText_(e));
         }
       });
     }
+
+  } finally {
+
+    session.done = true;
+    if (scanSession_ === session) scanSession_ = null;
+    if (video) video.srcObject = null;
+    parkScanCamera_();
 
   }
 
 }
 
+// ออกจากหน้าสแกน: ปิดหน้ากล้อง แต่ไม่ปิดกล้องจริง (parkScanCamera_ ปิดให้เองเมื่อไม่ได้ใช้ 3 นาที)
+// กลับมาสแกนใหม่จะได้ไม่ต้องขอสิทธิ์กล้องอีกรอบ
 function stopScanCamera_() {
-  if (codeReader_) {
-    try { codeReader_.reset(); } catch (e) {}
-    codeReader_ = null;
-  }
+  if (scanSession_) scanSession_.done = true;
   pendingOverlayCloseCallback_ = null;
   closeFullscreenScanOverlay_();
 }
