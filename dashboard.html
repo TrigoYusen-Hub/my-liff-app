@@ -429,14 +429,21 @@ body {
   font-weight: 600;
 }
 
-.access-request-form input {
+.access-request-form input,
+.access-request-form select {
   width: 100%;
   padding: 1.2vh 1.4vh;
-  border: 1px solid var(--bg-card-border);
+  border: 1px solid rgba(255,255,255,.18);
   border-radius: 8px;
+  background: var(--bg-page);
+  color: var(--text-primary);
   font-size: 1.9vh;
   font-family: inherit;
   box-sizing: border-box;
+}
+
+.access-request-form input:disabled {
+  color: var(--text-secondary);
 }
 
 .access-request-status {
@@ -1104,7 +1111,7 @@ body {
       </button>
       <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
       <div class="credits-title">TRIGO YUSEN DASHBOARD</div>
-      <div class="credits-version">Version 3.0.2</div>
+      <div class="credits-version">Version 3.1.0</div>
       <div class="credits-divider"></div>
       <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>สร้างขึ้นเพื่อใช้สำหรับดูภาพรวมยอดงานประจำวัน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
       <div class="credits-divider"></div>
@@ -1327,20 +1334,37 @@ function showAccessRequestForm_() {
   var wrap = document.createElement("div");
   wrap.className = "access-request-form";
   wrap.innerHTML =
-    '<label>ชื่อ-นามสกุล</label><input type="text" id="arName">' +
-    '<label>รหัสพนักงาน</label><input type="text" id="arCode">' +
+    '<label>ประเภทพนักงาน</label>' +
+    '<select id="arType"><option value="Permanent">Permanent (พนักงานประจำ)</option><option value="Oncall">Oncall</option></select>' +
+    '<label>ชื่อ-นามสกุล</label><input type="text" id="arName" placeholder="ชื่อ เว้นวรรค นามสกุล (ภาษาอังกฤษ)">' +
+    '<label>รหัสพนักงาน</label><input type="text" id="arCode" inputmode="numeric" maxlength="3" placeholder="ตัวเลข 3 ตัว เช่น 538">' +
+    '<label>Site</label>' +
+    '<select id="arSite"><option value="LCBTH">LCBTH</option><option value="AMATA">AMATA</option><option value="BANGNA">BANGNA</option><option value="RAYONG">RAYONG</option></select>' +
     '<button type="button" class="static-primary-btn" id="arSubmitBtn" style="height:auto;padding:1.2vh;">ยืนยัน</button>' +
     '<p class="access-request-status" id="arStatus"></p>';
   btn.replaceWith(wrap);
 
+  var typeEl = document.getElementById("arType");
+  var codeEl = document.getElementById("arCode");
+  typeEl.addEventListener("change", function() {
+    var oncall = typeEl.value === "Oncall";
+    codeEl.value = oncall ? "Oncall" : "";
+    codeEl.disabled = oncall;
+  });
+
   document.getElementById("arSubmitBtn").addEventListener("click", function() {
-    var name = document.getElementById("arName").value.trim();
-    var code = document.getElementById("arCode").value.trim();
+    var type = typeEl.value;
+    var name = document.getElementById("arName").value.trim().replace(/\s+/g, " ");
+    var code = type === "Oncall" ? "Oncall" : codeEl.value.trim();
+    var site = document.getElementById("arSite").value;
     var statusEl = document.getElementById("arStatus");
 
-    if (!name || !code) {
+    var error = "";
+    if (!/^\S+ \S+/.test(name)) error = "กรุณากรอกชื่อ เว้นวรรค นามสกุล ในช่องเดียวกัน";
+    else if (type === "Permanent" && !/^\d{3}$/.test(code)) error = "รหัสพนักงานต้องเป็นตัวเลข 3 ตัว";
+    if (error) {
       statusEl.className = "access-request-status err";
-      statusEl.textContent = "กรุณากรอกให้ครบ";
+      statusEl.textContent = error;
       return;
     }
 
@@ -1354,11 +1378,13 @@ function showAccessRequestForm_() {
         lineDisplayName: currentLineDisplayName,
         typedName: name,
         employeeCode: code,
+        employeeType: type,
+        site: site,
         appName: "Dashboard"
       }
     }).then(function(res) {
       if (res && res.ok) {
-        wrap.innerHTML = '<p class="access-request-status">ส่งคำขอแล้ว รอการติดต่อกลับ</p>';
+        wrap.innerHTML = '<p class="access-request-status">ส่งคำขอแล้ว รอ Admin อนุมัติ แล้วปิดและเปิดแอพใหม่อีกครั้ง</p>';
       } else {
         submitBtn.disabled = false;
         submitBtn.textContent = "ยืนยัน";
@@ -1455,7 +1481,7 @@ async function showDashboardHome_() {
     '<div id="dashSummaryWrap"></div>' +
     '<footer class="home-footer">' +
       '<div class="footer-brand">TRIGO YUSEN DASHBOARD</div>' +
-      '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.0.2<br>&copy; 2026 TRIGO</div>' +
+      '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.1.0<br>&copy; 2026 TRIGO</div>' +
     '</footer>';
 
   await loadAllTabData_();

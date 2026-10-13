@@ -476,14 +476,21 @@ body {
   font-weight: 600;
 }
 
-.access-request-form input {
+.access-request-form input,
+.access-request-form select {
   width: 100%;
   padding: 1.2vh 1.4vh;
-  border: 1px solid var(--bg-card-border);
+  border: 1px solid rgba(255,255,255,.18);
   border-radius: 8px;
+  background: var(--bg-page);
+  color: var(--text-primary);
   font-size: 1.9vh;
   font-family: inherit;
   box-sizing: border-box;
+}
+
+.access-request-form input:disabled {
+  color: var(--text-secondary);
 }
 
 .access-request-status {
@@ -839,6 +846,24 @@ body {
 .hm-purple .hm-list-icon { color: var(--accent-purple); background: rgba(139,108,255,.14); }
 .hm-teal .hm-list-icon { color: var(--accent-teal); background: rgba(34,201,214,.14); }
 .hm-pink .hm-list-icon { color: var(--accent-pink); background: rgba(255,92,168,.14); }
+.hm-orange .hm-list-icon { color: var(--accent-orange); background: rgba(255,167,38,.14); }
+
+.hm-badge {
+  min-width: 2.6vh;
+  height: 2.6vh;
+  padding: 0 0.8vh;
+  border-radius: 1.3vh;
+  background: var(--accent-red);
+  color: #ffffff;
+  font-size: 1.5vh;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+}
 
 .home-menu-card-title {
   font-size: 1.9vh;
@@ -1266,18 +1291,6 @@ body {
   line-height: 1.6;
 }
 
-.hidden-logo-tap {
-  position: absolute;
-  top: 10px;
-  left: 12px;
-  width: 5.2vh;
-  height: 5.2vh;
-  border: none;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
 .noti-bell {
   position: absolute;
   top: 10px;
@@ -1504,6 +1517,45 @@ body {
   font-size: 2vh;
 }
 
+.edit-form-row select {
+  height: 5.5vh;
+  border: 2px solid var(--bg-card-border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 0 12px;
+  color: var(--text-primary);
+  font-size: 2vh;
+  font-family: inherit;
+}
+
+.ar-section-label {
+  width: 340px;
+  max-width: calc(100% - 32px);
+  margin: 2.4vh auto 1.4vh;
+  font-size: 1.5vh;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.ar-code-hint {
+  width: 340px;
+  max-width: calc(100% - 32px);
+  margin: -0.8vh auto 1.6vh;
+  padding-left: 94px;
+  box-sizing: border-box;
+  font-size: 1.6vh;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.ar-empty {
+  margin: 4vh 0 0;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 2.1vh;
+}
+
 .edit-defect-section {
   width: 340px;
   max-width: calc(100% - 32px);
@@ -1715,7 +1767,6 @@ body {
 
     <div id="homeHero" style="display:none">
       <header class="home-header">
-        <button class="hidden-logo-tap" type="button" onclick="handleLogoTap_()" aria-label="TRIGO"></button>
         <button class="noti-bell" type="button" id="notiBell" onclick="openChangelog_()" aria-label="ประวัติการอัปเดต">
           <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6a4 4 0 0 1 4 4v1.6c8.3 1.8 13.5 9 13.5 18.4v8.4l4.5 6.6v3H10v-3l4.5-6.6v-8.4c0-9.4 5.2-16.6 13.5-18.4V10a4 4 0 0 1 4-4z" fill="#ffffff"></path><path d="M25 51h14a7 7 0 0 1-14 0z" fill="#ffffff"></path></svg>
           <span class="noti-dot" id="notiDot"></span>
@@ -1756,7 +1807,7 @@ body {
       </button>
       <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
       <div class="credits-title">TRIGO REPORT</div>
-      <div class="credits-version">Version 3.0.2</div>
+      <div class="credits-version">Version 3.1.0</div>
       <div class="credits-divider"></div>
       <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>สร้างขึ้นเพื่อใช้สำหรับสร้างใบงานและใบลงชื่อประจำวัน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
       <div class="credits-divider"></div>
@@ -1778,6 +1829,7 @@ var currentEmployeeDisplayName = "";
 var currentEmployeeName_ = "";
 var currentEmployeeType_ = "";
 var currentEmployeeSite_ = "";
+var pendingAccessRequestsCount_ = 0;
 
 // Admin/Engineer แก้ไขยอดงานของคนอื่นได้ ไม่ใช่แค่ของตัวเอง
 function isElevatedEmployeeType_(type) {
@@ -1920,6 +1972,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     currentEmployeeName_ = initData.employee.name || "";
     currentEmployeeType_ = initData.employee.type || "";
     currentEmployeeSite_ = initData.employee.site || "";
+    pendingAccessRequestsCount_ = Number(initData.pendingAccessRequests) || 0;
 
     if (initData.version) {
       window.currentAppVersion = initData.version;
@@ -2150,20 +2203,37 @@ function showAccessRequestForm_() {
   var wrap = document.createElement("div");
   wrap.className = "access-request-form";
   wrap.innerHTML =
-    '<label>ชื่อ-นามสกุล</label><input type="text" id="arName">' +
-    '<label>รหัสพนักงาน</label><input type="text" id="arCode">' +
+    '<label>ประเภทพนักงาน</label>' +
+    '<select id="arType"><option value="Permanent">Permanent (พนักงานประจำ)</option><option value="Oncall">Oncall</option></select>' +
+    '<label>ชื่อ-นามสกุล</label><input type="text" id="arName" placeholder="ชื่อ เว้นวรรค นามสกุล (ภาษาอังกฤษ)">' +
+    '<label>รหัสพนักงาน</label><input type="text" id="arCode" inputmode="numeric" maxlength="3" placeholder="ตัวเลข 3 ตัว เช่น 538">' +
+    '<label>Site</label>' +
+    '<select id="arSite"><option value="LCBTH">LCBTH</option><option value="AMATA">AMATA</option><option value="BANGNA">BANGNA</option><option value="RAYONG">RAYONG</option></select>' +
     '<button type="button" class="static-primary-btn" id="arSubmitBtn" style="height:auto;padding:1.2vh;">ยืนยัน</button>' +
     '<p class="access-request-status" id="arStatus"></p>';
   btn.replaceWith(wrap);
 
+  var typeEl = document.getElementById("arType");
+  var codeEl = document.getElementById("arCode");
+  typeEl.addEventListener("change", function() {
+    var oncall = typeEl.value === "Oncall";
+    codeEl.value = oncall ? "Oncall" : "";
+    codeEl.disabled = oncall;
+  });
+
   document.getElementById("arSubmitBtn").addEventListener("click", function() {
-    var name = document.getElementById("arName").value.trim();
-    var code = document.getElementById("arCode").value.trim();
+    var type = typeEl.value;
+    var name = document.getElementById("arName").value.trim().replace(/\s+/g, " ");
+    var code = type === "Oncall" ? "Oncall" : codeEl.value.trim();
+    var site = document.getElementById("arSite").value;
     var statusEl = document.getElementById("arStatus");
 
-    if (!name || !code) {
+    var error = "";
+    if (!/^\S+ \S+/.test(name)) error = "กรุณากรอกชื่อ เว้นวรรค นามสกุล ในช่องเดียวกัน";
+    else if (type === "Permanent" && !/^\d{3}$/.test(code)) error = "รหัสพนักงานต้องเป็นตัวเลข 3 ตัว";
+    if (error) {
       statusEl.className = "access-request-status err";
-      statusEl.textContent = "กรุณากรอกให้ครบ";
+      statusEl.textContent = error;
       return;
     }
 
@@ -2177,11 +2247,13 @@ function showAccessRequestForm_() {
         lineDisplayName: currentLineDisplayName,
         typedName: name,
         employeeCode: code,
+        employeeType: type,
+        site: site,
         appName: "Report"
       }
     }).then(function(res) {
       if (res && res.ok) {
-        wrap.innerHTML = '<p class="access-request-status">ส่งคำขอแล้ว รอการติดต่อกลับ</p>';
+        wrap.innerHTML = '<p class="access-request-status">ส่งคำขอแล้ว รอ Admin อนุมัติ แล้วปิดและเปิดแอพใหม่อีกครั้ง</p>';
       } else {
         submitBtn.disabled = false;
         submitBtn.textContent = "ยืนยัน";
@@ -2197,150 +2269,259 @@ function showAccessRequestForm_() {
   });
 }
 
-// ===== ซ่อนไว้: แตะโลโก้ TRIGO ที่แบนเนอร์หน้าแรก 3 ครั้งรัวๆ เด้งฟอร์มเพิ่ม
-// พนักงาน (เหมือนฟอร์มใน Backoffice แอพแยก ใช้ backend ตัวเดียวกัน
-// backofficeAddEmployee -- ต้องใส่ PIN เหมือนกันทุกประการ ไม่ได้ผ่อนสิทธิ์
-// เพราะเป็นแค่ทางลัดเข้าถึง ไม่ใช่ปล่อยให้ข้ามการยืนยันตัวตน) =====
-var logoTapCount_ = 0;
-var logoTapTimer_ = null;
+// ===== คำขอเข้าใช้งาน (Admin เท่านั้น) -- คนที่ยังไม่มีสิทธิ์กด "ร้องขอการเข้าถึง" จาก
+// แอพไหนก็ได้ มารวมที่นี่ Admin ดูข้อมูล แก้ได้ แล้วกดยืนยัน ระบบเพิ่มแถว (หรือผูก
+// LINE กับรหัสเดิม) ในชีท Employee ให้เอง -- backend เช็คสิทธิ์ Admin ซ้ำทุกครั้ง =====
+var accessRequestState_ = { requests: [], suggestedOncallCode: "", current: null, permanentCode: "" };
 
-function handleLogoTap_() {
-  logoTapCount_++;
+function accessTypeLabel_(type) {
+  if (type === "Permanent" || type === "Oncall") return type;
+  return "ไม่ระบุ";
+}
 
-  if (logoTapTimer_) clearTimeout(logoTapTimer_);
-  logoTapTimer_ = setTimeout(function() { logoTapCount_ = 0; }, 2000);
+async function showAccessRequestList_() {
+  setPageTitle_("คำขอเข้าใช้งาน");
+  document.getElementById("content").innerHTML = "";
+  var myNav = navStack_[navStack_.length - 1];
 
-  if (logoTapCount_ >= 3) {
-    logoTapCount_ = 0;
-    clearTimeout(logoTapTimer_);
-    showHiddenAddEmployee_();
+  var res = null;
+  try {
+    res = await api("getAccessRequests", { lineUserId: currentLineUserId });
+  } catch (e) {}
+
+  // กดย้อนกลับไปแล้วระหว่างรอโหลด -- อย่าวาดทับหน้าที่อยู่ตอนนี้
+  if (navStack_[navStack_.length - 1] !== myNav) return;
+
+  if (!res || !res.ok) {
+    document.getElementById("content").innerHTML =
+      '<div class="picker-page"><p class="ar-empty">' + escapeHtml((res && res.error) || "โหลดรายการไม่สำเร็จ") + '</p></div>';
+    return;
   }
-}
 
-function buildHiddenOverlayShell_() {
-  var overlay = document.createElement("div");
-  overlay.style.cssText = "position:fixed;inset:0;z-index:10000;background:rgba(0,5,19,.65);display:flex;align-items:center;justify-content:center;padding:16px;";
-  var card = document.createElement("div");
-  card.style.cssText = "background:var(--bg-card);border:1px solid var(--bg-card-border);color:var(--text-primary);border-radius:12px;padding:20px;width:100%;max-width:360px;max-height:85vh;overflow-y:auto;box-sizing:border-box;";
-  overlay.appendChild(card);
-  document.body.appendChild(overlay);
-  return { overlay: overlay, card: card };
-}
+  accessRequestState_.requests = res.requests || [];
+  accessRequestState_.suggestedOncallCode = res.suggestedOncallCode || "";
+  pendingAccessRequestsCount_ = accessRequestState_.requests.length;
 
-function hiddenFieldHtml_(id, labelText, placeholder, type) {
-  return '<label style="display:block;font-size:0.82rem;color:var(--text-secondary);margin:12px 0 4px;font-weight:600;">' + labelText + '</label>' +
-    '<input type="' + (type || "text") + '" id="' + id + '"' + (placeholder ? ' placeholder="' + placeholder + '"' : "") +
-    ' style="width:100%;padding:10px 12px;border:1px solid var(--bg-card-border);border-radius:8px;font-size:0.95rem;box-sizing:border-box;background:var(--bg-page);color:var(--text-primary);">';
-}
-
-function showHiddenAddEmployee_() {
-  var shell = buildHiddenOverlayShell_();
-  shell.card.innerHTML =
-    '<h2 style="margin:0 0 14px;">เข้าสู่ระบบ Admin</h2>' +
-    hiddenFieldHtml_("hiddenPinInput", "รหัสผ่าน", "", "password") +
-    '<button type="button" id="hiddenPinSubmit" class="static-primary-btn" style="height:auto;padding:1.2vh;margin-top:14px;width:100%;">เข้าสู่ระบบ</button>' +
-    '<p id="hiddenPinStatus" style="margin-top:10px;font-size:0.85rem;color:var(--accent-red);"></p>' +
-    '<button type="button" id="hiddenOverlayClose" style="margin-top:6px;width:100%;background:none;border:none;color:var(--text-secondary);font-size:0.85rem;cursor:pointer;">ปิด</button>';
-
-  shell.card.querySelector("#hiddenOverlayClose").addEventListener("click", function() { shell.overlay.remove(); });
-
-  var pinInput = shell.card.querySelector("#hiddenPinInput");
-  pinInput.focus();
-
-  function doLogin() {
-    var pin = pinInput.value.trim();
-    if (!pin) return;
-    var btn = shell.card.querySelector("#hiddenPinSubmit");
-    btn.disabled = true; btn.textContent = "กำลังตรวจสอบ...";
-    api("backofficeLogin", { pin: pin }).then(function(res) {
-      if (res && res.ok) {
-        showHiddenAddEmployeeForm_(shell, pin);
-      } else {
-        btn.disabled = false; btn.textContent = "เข้าสู่ระบบ";
-        shell.card.querySelector("#hiddenPinStatus").textContent = (res && res.error) || "รหัสผ่านไม่ถูกต้อง";
-      }
-    }).catch(function() {
-      btn.disabled = false; btn.textContent = "เข้าสู่ระบบ";
-      shell.card.querySelector("#hiddenPinStatus").textContent = "เชื่อมต่อไม่สำเร็จ";
-    });
+  if (!accessRequestState_.requests.length) {
+    document.getElementById("content").innerHTML =
+      '<div class="picker-page"><h2 class="picker-heading">คำขอเข้าใช้งาน</h2><p class="ar-empty">ไม่มีคำขอที่รออนุมัติ</p></div>';
+    return;
   }
-  shell.card.querySelector("#hiddenPinSubmit").addEventListener("click", doLogin);
-  pinInput.addEventListener("keydown", function(e) { if (e.key === "Enter") doLogin(); });
-}
 
-function showHiddenAddEmployeeForm_(shell, pin) {
-  shell.card.innerHTML =
-    '<h2 style="margin:0 0 14px;">เพิ่มพนักงาน</h2>' +
-    '<label style="display:block;font-size:0.82rem;color:var(--text-secondary);margin:0 0 4px;font-weight:600;">รูปแบบพนักงาน</label>' +
-    '<select id="hType" style="width:100%;padding:10px 12px;border:1px solid var(--bg-card-border);border-radius:8px;font-size:0.95rem;background:var(--bg-page);color:var(--text-primary);">' +
-      '<option value="Permanent">Permanent</option><option value="On-Call">On-Call</option>' +
-    '</select>' +
-    hiddenFieldHtml_("hPass", "รหัสพนักงาน", "Trigoxxx") +
-    hiddenFieldHtml_("hName", "ชื่อ-นามสกุล", "กรอกชื่อ นามสกุล ภาษาอังกฤษ") +
-    '<label style="display:block;font-size:0.82rem;color:var(--text-secondary);margin:12px 0 4px;font-weight:600;">Site</label>' +
-    '<select id="hSite" style="width:100%;padding:10px 12px;border:1px solid var(--bg-card-border);border-radius:8px;font-size:0.95rem;background:var(--bg-page);color:var(--text-primary);">' +
-      '<option value="LCBTH">LCBTH</option><option value="AMATA">AMATA</option><option value="BANGNA">BANGNA</option><option value="RAYONG">RAYONG</option>' +
-    '</select>' +
-    hiddenFieldHtml_("hTravelIn", "เวลาเดินทางมา (ไม่บังคับ)", "เช่น 1 ชม.") +
-    hiddenFieldHtml_("hTravelOut", "เวลาเดินทางกลับ (ไม่บังคับ)", "เช่น 1 ชม.") +
-    '<button type="button" id="hSaveBtn" class="static-primary-btn" style="height:auto;padding:1.2vh;margin-top:14px;width:100%;">บันทึก</button>' +
-    '<p id="hStatus" style="margin-top:10px;font-size:0.85rem;"></p>' +
-    '<button type="button" id="hClose" style="margin-top:6px;width:100%;background:none;border:none;color:var(--text-secondary);font-size:0.85rem;cursor:pointer;">ปิด</button>';
-
-  var typeSelect = shell.card.querySelector("#hType");
-  var passInput = shell.card.querySelector("#hPass");
-
-  function applyType() {
-    if (typeSelect.value === "On-Call") {
-      passInput.value = "";
-      passInput.disabled = true;
-      passInput.placeholder = "Oncall ไม่ต้องกรอกรหัส";
-    } else {
-      passInput.disabled = false;
-      passInput.placeholder = "Trigoxxx";
+  renderPicker_({
+    context: [],
+    heading: "รออนุมัติ " + accessRequestState_.requests.length + " รายการ",
+    showSearch: false,
+    items: accessRequestState_.requests.map(function(r) {
+      return {
+        title: r.typedName || r.lineDisplayName || "-",
+        sub: [accessTypeLabel_(r.type), /^oncall$/i.test(r.employeeCode) ? "" : r.employeeCode, r.site, r.timestamp].filter(Boolean).join(" · "),
+        req: r
+      };
+    }),
+    onSelect: function(item) {
+      goto_(function() { showAccessRequestDetail_(item.req); });
     }
+  });
+}
+
+// คำขอจากฟอร์มรุ่นเก่าไม่มี Type -- เดาจากรหัสที่พิมพ์มา ("538"/"TRIGO538" = Permanent)
+function accessRequestDefaults_(r) {
+  var code = String(r.employeeCode || "").trim();
+  var m = /^(?:TRIGO)?\s*(\d{3})$/i.exec(code);
+  var type = r.type;
+  if (type !== "Permanent" && type !== "Oncall") {
+    type = (/oncall/i.test(code) || /^L\d+$/i.test(code)) ? "Oncall" : "Permanent";
   }
-  typeSelect.addEventListener("change", applyType);
-  applyType();
+  return { type: type, permanentCode: m ? m[1] : "" };
+}
 
-  shell.card.querySelector("#hClose").addEventListener("click", function() { shell.overlay.remove(); });
+function arInfoRow_(label, value) {
+  return '<div class="info-row"><span>' + escapeHtml(label) + '</span><span class="info-value">' + escapeHtml(value || "-") + '</span></div>';
+}
 
-  shell.card.querySelector("#hSaveBtn").addEventListener("click", function() {
-    var type = typeSelect.value;
-    var pass = passInput.value.trim();
-    var name = shell.card.querySelector("#hName").value.trim();
-    var statusEl = shell.card.querySelector("#hStatus");
+function arWarning_(text) {
+  return '<div class="review-banner">' + warningTriangleIcon() + '<span class="review-banner-text">' + escapeHtml(text) + '</span></div>';
+}
 
-    if (!name) { statusEl.style.color = "var(--accent-red)"; statusEl.textContent = "กรุณากรอกชื่อ"; return; }
-    if (type === "Permanent" && !pass) { statusEl.style.color = "var(--accent-red)"; statusEl.textContent = "กรุณากรอกรหัสพนักงาน"; return; }
+function xStrokeIcon_() {
+  return '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 18L46 46M46 18L18 46" stroke="currentColor" stroke-width="7" stroke-linecap="round"></path></svg>';
+}
 
-    var btn = shell.card.querySelector("#hSaveBtn");
-    btn.disabled = true; btn.textContent = "กำลังบันทึก...";
+function showAccessRequestDetail_(r) {
+  accessRequestState_.current = r;
+  var d = accessRequestDefaults_(r);
+  accessRequestState_.permanentCode = d.permanentCode;
+  setPageTitle_("คำขอเข้าใช้งาน");
 
-    api("backofficeAddEmployee", {
-      pin: pin,
-      pass: type === "Permanent" ? pass : "",
-      name: name,
-      type: type,
-      site: shell.card.querySelector("#hSite").value,
-      travelIn: shell.card.querySelector("#hTravelIn").value.trim(),
-      travelOut: shell.card.querySelector("#hTravelOut").value.trim()
-    }).then(function(res) {
-      btn.disabled = false; btn.textContent = "บันทึก";
-      if (res && res.ok) {
-        statusEl.style.color = "var(--accent-green)";
-        statusEl.textContent = "เพิ่มพนักงานสำเร็จ" + (res.employeeId ? " (" + res.employeeId + ")" : "");
-        passInput.value = "";
-        shell.card.querySelector("#hName").value = "";
-      } else {
-        statusEl.style.color = "var(--accent-red)";
-        statusEl.textContent = (res && res.error) || "บันทึกไม่สำเร็จ";
+  var warnings = "";
+  if (!r.lineUserId) {
+    warnings += arWarning_("คำขอนี้ไม่มี LINE User ID — กดไม่อนุมัติ แล้วให้พนักงานส่งคำขอใหม่จากในแอพ LINE");
+  }
+  if (r.lineBoundTo) {
+    warnings += arWarning_("LINE นี้ผูกกับ " + r.lineBoundTo.name + " (" + r.lineBoundTo.employeeId + ") สถานะ " + (r.lineBoundTo.status || "-") + " อยู่แล้ว — ถ้าเป็นคนเดิม ให้แก้สถานะในชีท Employee เป็น Active แทน");
+  }
+  if (r.codeMatch) {
+    warnings += arWarning_(r.codeMatch.hasLine
+      ? "รหัส " + r.employeeCode + " เป็นของ " + r.codeMatch.name + " ซึ่งผูก LINE อื่นอยู่แล้ว — ตรวจสอบรหัสอีกครั้ง"
+      : "รหัส " + r.employeeCode + " มีในระบบแล้ว (" + r.codeMatch.name + ") — กดยืนยันจะผูก LINE นี้เข้ากับคนนี้ ไม่เพิ่มแถวใหม่");
+  }
+
+  var site = r.site || "LCBTH";
+  var siteOptions = ["LCBTH", "AMATA", "BANGNA", "RAYONG"].map(function(s) {
+    return '<option value="' + s + '"' + (s === site ? " selected" : "") + '>' + s + '</option>';
+  }).join("");
+  var codeValue = d.type === "Oncall" ? accessRequestState_.suggestedOncallCode : d.permanentCode;
+
+  document.getElementById("content").innerHTML =
+    '<div class="confirm-view">' +
+      '<h2 class="confirm-heading">ข้อมูลที่พนักงานส่งมา</h2>' +
+      warnings +
+      '<section class="confirm-card">' +
+        arInfoRow_("ชื่อ", r.typedName) +
+        arInfoRow_("ประเภท", accessTypeLabel_(r.type)) +
+        arInfoRow_("รหัสพนักงาน", r.employeeCode) +
+        arInfoRow_("Site", r.site) +
+        arInfoRow_("ส่งจากแอพ", r.app) +
+        arInfoRow_("LINE", r.lineDisplayName) +
+        arInfoRow_("LINE User ID", r.lineUserId) +
+        arInfoRow_("เวลาที่ขอ", r.timestamp) +
+      '</section>' +
+      '<p class="ar-section-label">ข้อมูลที่จะบันทึกลงชีท Employee (แก้ไขได้)</p>' +
+      '<div class="edit-form-row"><label>ชื่อ</label><input id="arEditName" type="text" value="' + escapeHtml(r.typedName) + '" placeholder="ชื่อ เว้นวรรค นามสกุล"></div>' +
+      '<div class="edit-form-row"><label>ประเภท</label><select id="arEditType" onchange="onAccessEditTypeChange_()">' +
+        '<option value="Permanent"' + (d.type === "Permanent" ? " selected" : "") + '>Permanent</option>' +
+        '<option value="Oncall"' + (d.type === "Oncall" ? " selected" : "") + '>Oncall</option>' +
+      '</select></div>' +
+      '<div class="edit-form-row"><label>รหัส</label><input id="arEditCode" type="text" value="' + escapeHtml(codeValue) + '" oninput="updateAccessCodeHint_()"></div>' +
+      '<p class="ar-code-hint" id="arCodeHint"></p>' +
+      '<div class="edit-form-row"><label>Site</label><select id="arEditSite">' + siteOptions + '</select></div>' +
+      '<div class="edit-form-row"><label>เดินทางมา</label><input id="arEditTravelIn" type="text" placeholder="ไม่บังคับ"></div>' +
+      '<div class="edit-form-row"><label>เดินทางกลับ</label><input id="arEditTravelOut" type="text" placeholder="ไม่บังคับ"></div>' +
+      '<button id="arApproveBtn" class="static-approve-btn" type="button" style="margin-top:3vh;" onclick="submitAccessApproval_(false)">' + checkCircleWhiteIcon() + '<span>ยืนยันเพิ่มพนักงาน</span></button>' +
+      '<button id="arRejectBtn" class="static-danger-btn" type="button" style="margin-bottom:4vh;" onclick="submitAccessReject_()">' + xStrokeIcon_() + '<span>ไม่อนุมัติ</span></button>' +
+    '</div>';
+
+  applyAccessCodeInputMode_();
+  updateAccessCodeHint_();
+}
+
+function onAccessEditTypeChange_() {
+  var oncall = document.getElementById("arEditType").value === "Oncall";
+  document.getElementById("arEditCode").value = oncall ? accessRequestState_.suggestedOncallCode : accessRequestState_.permanentCode;
+  applyAccessCodeInputMode_();
+  updateAccessCodeHint_();
+}
+
+function applyAccessCodeInputMode_() {
+  var oncall = document.getElementById("arEditType").value === "Oncall";
+  var codeEl = document.getElementById("arEditCode");
+  codeEl.setAttribute("inputmode", oncall ? "text" : "numeric");
+  codeEl.maxLength = oncall ? 5 : 3;
+  codeEl.placeholder = oncall ? "เช่น " + (accessRequestState_.suggestedOncallCode || "L40") : "ตัวเลข 3 ตัว";
+}
+
+function updateAccessCodeHint_() {
+  var hint = document.getElementById("arCodeHint");
+  if (!hint) return;
+  var oncall = document.getElementById("arEditType").value === "Oncall";
+  var code = document.getElementById("arEditCode").value.trim().toUpperCase() || "___";
+  var next = accessRequestState_.suggestedOncallCode;
+  hint.textContent = oncall
+    ? "บันทึกเป็น Employee ID / Pass: " + code + (next && next !== code ? " (รหัสว่างถัดไป " + next + ")" : "")
+    : "บันทึกเป็น Employee ID: TRIGO" + code + " / Pass: " + code;
+}
+
+function setAccessButtonsDisabled_(disabled) {
+  ["arApproveBtn", "arRejectBtn"].forEach(function(id) {
+    var b = document.getElementById(id);
+    if (b) b.disabled = disabled;
+  });
+}
+
+function submitAccessApproval_(confirmBind) {
+  var r = accessRequestState_.current;
+  var btn = document.getElementById("arApproveBtn");
+  if (!r || (btn && btn.disabled)) return;
+
+  var f = {
+    name: document.getElementById("arEditName").value.trim().replace(/\s+/g, " "),
+    type: document.getElementById("arEditType").value,
+    code: document.getElementById("arEditCode").value.trim().toUpperCase(),
+    site: document.getElementById("arEditSite").value,
+    travelIn: document.getElementById("arEditTravelIn").value.trim(),
+    travelOut: document.getElementById("arEditTravelOut").value.trim()
+  };
+
+  var error = "";
+  if (!/^\S+ \S+/.test(f.name)) error = "กรุณากรอกชื่อ เว้นวรรค นามสกุล";
+  else if (f.type === "Permanent" && !/^\d{3}$/.test(f.code)) error = "รหัส Permanent ต้องเป็นตัวเลข 3 ตัว";
+  else if (f.type === "Oncall" && !/^L\d{2,}$/.test(f.code)) error = "รหัส Oncall ต้องเป็น L ตามด้วยตัวเลข เช่น L40";
+  if (error) {
+    alert(error);
+    return;
+  }
+
+  setAccessButtonsDisabled_(true);
+
+  api("approveAccessRequest", {
+    lineUserId: currentLineUserId,
+    payload: {
+      rowNumber: r.rowNumber,
+      requestLineUserId: r.lineUserId,
+      name: f.name,
+      type: f.type,
+      code: f.code,
+      site: f.site,
+      travelIn: f.travelIn,
+      travelOut: f.travelOut,
+      confirmBind: !!confirmBind
+    }
+  }).then(function(data) {
+    if (data && data.ok) {
+      pendingAccessRequestsCount_ = Math.max(0, pendingAccessRequestsCount_ - 1);
+      alert("อนุมัติเรียบร้อย\n" + (data.result || ""));
+      goBack_();
+      return;
+    }
+    setAccessButtonsDisabled_(false);
+    if (data && data.needsConfirmBind && data.existing) {
+      var ex = data.existing;
+      if (confirm("รหัส " + f.code + " มีในระบบแล้ว: " + ex.name + " (" + ex.employeeId + ")\nยังไม่ได้ผูก LINE\n\nผูก LINE ของคำขอนี้เข้ากับพนักงานคนนี้เลยไหม?\n(ใช้ชื่อ/Site เดิมในชีท ไม่เพิ่มแถวใหม่)")) {
+        submitAccessApproval_(true);
       }
-    }).catch(function() {
-      btn.disabled = false; btn.textContent = "บันทึก";
-      statusEl.style.color = "var(--accent-red)";
-      statusEl.textContent = "เชื่อมต่อไม่สำเร็จ";
-    });
+      return;
+    }
+    alert((data && data.error) || "อนุมัติไม่สำเร็จ");
+  }).catch(function() {
+    setAccessButtonsDisabled_(false);
+    alert("เชื่อมต่อไม่สำเร็จ");
+  });
+}
+
+function submitAccessReject_() {
+  var r = accessRequestState_.current;
+  var btn = document.getElementById("arRejectBtn");
+  if (!r || (btn && btn.disabled)) return;
+  if (!confirm("ไม่อนุมัติคำขอของ " + (r.typedName || r.lineDisplayName || "-") + "?")) return;
+
+  setAccessButtonsDisabled_(true);
+
+  api("rejectAccessRequest", {
+    lineUserId: currentLineUserId,
+    payload: { rowNumber: r.rowNumber, requestLineUserId: r.lineUserId }
+  }).then(function(data) {
+    if (data && data.ok) {
+      pendingAccessRequestsCount_ = Math.max(0, pendingAccessRequestsCount_ - 1);
+      alert("ไม่อนุมัติเรียบร้อย");
+      goBack_();
+      return;
+    }
+    setAccessButtonsDisabled_(false);
+    alert((data && data.error) || "ทำรายการไม่สำเร็จ");
+  }).catch(function() {
+    setAccessButtonsDisabled_(false);
+    alert("เชื่อมต่อไม่สำเร็จ");
   });
 }
 
@@ -2427,15 +2608,18 @@ function showHomeChoice_() {
   setPageTitle_("Trigo Report");
 
   var showManualPresenceCreate = isElevatedEmployeeType_(currentEmployeeType_);
+  // อนุมัติคนเข้าใช้งาน = เขียนชีท Employee -- Admin เท่านั้น (Engineer ไม่เห็นเมนูนี้)
+  var showAccessRequests = String(currentEmployeeType_ || "").trim().toLowerCase() === "admin";
 
   function hmChevron() {
     return '<svg class="hm-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>';
   }
 
-  function hmListCard(cls, title, icon, onclick) {
+  function hmListCard(cls, title, icon, onclick, badge) {
     return '<button type="button" class="home-menu-card ' + cls + '" onclick="' + onclick + '">' +
         '<span class="hm-list-icon">' + icon + '</span>' +
         '<span class="home-menu-card-title">' + title + '</span>' +
+        (badge > 0 ? '<span class="hm-badge">' + badge + '</span>' : '') +
         hmChevron() +
       '</button>';
   }
@@ -2446,6 +2630,7 @@ function showHomeChoice_() {
   var iconList = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9h10M7 13h10M7 17h6"></path></svg>';
   var iconDocPlus = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M12 12v6M9 15h6"></path></svg>';
   var iconClock = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
+  var iconUserPlus = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"></path><path d="M19 8v6M16 11h6"></path></svg>';
 
   document.getElementById("content").innerHTML =
     '<div class="home-menu">' +
@@ -2471,6 +2656,7 @@ function showHomeChoice_() {
       (showManualPresenceCreate ?
         '<div class="hm-section">' +
           '<div class="hm-section-label hm-admin-label">Admin / Engineer</div>' +
+          (showAccessRequests ? hmListCard('hm-orange', 'คำขอเข้าใช้งาน', iconUserPlus, 'goFromHome_(showAccessRequestList_)', pendingAccessRequestsCount_) : '') +
           hmListCard('hm-pink', 'บันทึกรองาน', iconClock, 'goFromHome_(showWaitForWorkDatePicker_)') +
         '</div>'
         : '') +
@@ -2483,7 +2669,7 @@ function showHomeChoice_() {
       '<div class="hm-footer-divider"></div>' +
       '<div class="hm-footer-brand-wrap">' +
         '<div class="footer-brand">TRIGO REPORT</div>' +
-        '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.0.2<br>&copy; 2026 TRIGO</div>' +
+        '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.1.0<br>&copy; 2026 TRIGO</div>' +
       '</div>' +
     '</footer>';
 }

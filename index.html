@@ -973,7 +973,7 @@ footer {
 
 .qty-row label {
   color: var(--text-secondary);
-  font-size: 3.67vh;
+  font-size: min(3.3vh, 27px);
   line-height: 1;
   font-weight: 400;
 }
@@ -1348,11 +1348,12 @@ footer {
   position: relative;
   min-height: 93.48vh;
   padding-top: 12.80vh;
+  padding-bottom: 3vh;
 }
 
 .error-card {
   width: 322px;
-  height: 35.66vh;
+  min-height: 35.66vh;
   margin: 0 auto;
   border-radius: 16px;
   background: rgba(255,77,77,.14);
@@ -1405,6 +1406,7 @@ footer {
 .access-request-form {
   margin-top: 2vh;
   width: 100%;
+  padding: 0 16px 2.4vh;
   text-align: left;
 }
 
@@ -1416,14 +1418,21 @@ footer {
   font-weight: 600;
 }
 
-.access-request-form input {
+.access-request-form input,
+.access-request-form select {
   width: 100%;
   padding: 1.2vh 1.4vh;
-  border: 1px solid var(--bg-card-border);
+  border: 1px solid rgba(255,255,255,.18);
   border-radius: 8px;
+  background: var(--bg-page);
+  color: var(--text-primary);
   font-size: 1.9vh;
   font-family: inherit;
   box-sizing: border-box;
+}
+
+.access-request-form input:disabled {
+  color: var(--text-secondary);
 }
 
 .access-request-form button {
@@ -1807,6 +1816,18 @@ footer {
   position: relative;
 }
 
+.batch-format-hint {
+  display: none;
+  margin: 0.6vh 0 0;
+  font-size: 1.6vh;
+  line-height: 1.35;
+  color: var(--accent-red);
+}
+
+.batch-format-hint.show {
+  display: block;
+}
+
 .batch-suggest {
   display: none;
   position: absolute;
@@ -2111,7 +2132,7 @@ footer {
       <div class="footer-divider"></div>
       <div class="footer-brand-wrap">
         <div class="footer-brand">TRIGO YUSEN HUB</div>
-        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.0.2<br>&copy; 2026 TRIGO</div>
+        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.1.0<br>&copy; 2026 TRIGO</div>
       </div>
     </footer>
 </main>
@@ -2128,7 +2149,7 @@ footer {
     </button>
     <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
     <div class="credits-title">TRIGO YUSEN HUB</div>
-    <div class="credits-version">Version 3.0.2</div>
+    <div class="credits-version">Version 3.1.0</div>
     <div class="credits-divider"></div>
     <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>เพื่อใช้ในการบันทึกข้อมูลงาน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
     <div class="credits-divider"></div>
@@ -2459,20 +2480,37 @@ function showAccessRequestForm_() {
   var wrap = document.createElement("div");
   wrap.className = "access-request-form";
   wrap.innerHTML =
-    '<label>ชื่อ-นามสกุล</label><input type="text" id="arName">' +
-    '<label>รหัสพนักงาน</label><input type="text" id="arCode">' +
+    '<label>ประเภทพนักงาน</label>' +
+    '<select id="arType"><option value="Permanent">Permanent (พนักงานประจำ)</option><option value="Oncall">Oncall</option></select>' +
+    '<label>ชื่อ-นามสกุล</label><input type="text" id="arName" placeholder="ชื่อ เว้นวรรค นามสกุล (ภาษาอังกฤษ)">' +
+    '<label>รหัสพนักงาน</label><input type="text" id="arCode" inputmode="numeric" maxlength="3" placeholder="ตัวเลข 3 ตัว เช่น 538">' +
+    '<label>Site</label>' +
+    '<select id="arSite"><option value="LCBTH">LCBTH</option><option value="AMATA">AMATA</option><option value="BANGNA">BANGNA</option><option value="RAYONG">RAYONG</option></select>' +
     '<button type="button" id="arSubmitBtn">ยืนยัน</button>' +
     '<p class="access-request-status" id="arStatus"></p>';
   btn.replaceWith(wrap);
 
+  var typeEl = document.getElementById("arType");
+  var codeEl = document.getElementById("arCode");
+  typeEl.addEventListener("change", function() {
+    var oncall = typeEl.value === "Oncall";
+    codeEl.value = oncall ? "Oncall" : "";
+    codeEl.disabled = oncall;
+  });
+
   document.getElementById("arSubmitBtn").addEventListener("click", function() {
-    var name = document.getElementById("arName").value.trim();
-    var code = document.getElementById("arCode").value.trim();
+    var type = typeEl.value;
+    var name = document.getElementById("arName").value.trim().replace(/\s+/g, " ");
+    var code = type === "Oncall" ? "Oncall" : codeEl.value.trim();
+    var site = document.getElementById("arSite").value;
     var statusEl = document.getElementById("arStatus");
 
-    if (!name || !code) {
+    var error = "";
+    if (!/^\S+ \S+/.test(name)) error = "กรุณากรอกชื่อ เว้นวรรค นามสกุล ในช่องเดียวกัน";
+    else if (type === "Permanent" && !/^\d{3}$/.test(code)) error = "รหัสพนักงานต้องเป็นตัวเลข 3 ตัว";
+    if (error) {
       statusEl.className = "access-request-status err";
-      statusEl.textContent = "กรุณากรอกให้ครบ";
+      statusEl.textContent = error;
       return;
     }
 
@@ -2486,11 +2524,13 @@ function showAccessRequestForm_() {
         lineDisplayName: currentLineDisplayName,
         typedName: name,
         employeeCode: code,
+        employeeType: type,
+        site: site,
         appName: "Hub"
       }
     }).then(function(res) {
       if (res && res.ok) {
-        wrap.innerHTML = '<p class="access-request-status">ส่งคำขอแล้ว รอการติดต่อกลับ</p>';
+        wrap.innerHTML = '<p class="access-request-status">ส่งคำขอแล้ว รอ Admin อนุมัติ แล้วปิดและเปิดแอพใหม่อีกครั้ง</p>';
       } else {
         submitBtn.disabled = false;
         submitBtn.textContent = "ยืนยัน";
@@ -2935,11 +2975,10 @@ async function onManualPartChange_() {
 function updateManualForm() {
   var mission = document.getElementById("manualMission").value;
   var partNumber = document.getElementById("manualPartNumber").value;
-  var batch = document.getElementById("manualBatch").value.trim();
   var total = Number(document.getElementById("manualTotal").value || 0);
   var nextBtn = document.getElementById("manualNextBtn");
 
-  var valid = mission && partNumber && batch && total > 0;
+  var valid = mission && partNumber && batchComboIsValid_("recv") && total > 0;
 
   if (valid) {
     nextBtn.disabled = false;
@@ -3277,12 +3316,39 @@ var BATCH_COMBOS_ = {
 };
 var batchComboState_ = {};
 
+// Batch ที่พิมพ์เอง: ตัวเลข 10 หลักเท่านั้น หรือ N/A ถ้าไม่ทราบ (ฝั่ง backend saveManualReceive เช็คซ้ำอีกชั้น)
+function isValidManualBatch_(val) {
+  return /^\d{10}$/.test(val) || val === "N/A";
+}
+
 function batchComboFieldHtml_(key, placeholder) {
   var c = BATCH_COMBOS_[key];
   return '<div class="batch-combo">' +
-    '<input id="' + c.inputId + '" type="text" autocomplete="off" placeholder="' + escapeHtml(placeholder) + '" oninput="onBatchComboInput_(\'' + key + '\')">' +
+    '<input id="' + c.inputId + '" type="text" autocomplete="off" maxlength="10" placeholder="' + escapeHtml(placeholder) + '" oninput="onBatchComboInput_(\'' + key + '\')">' +
     '<div class="batch-suggest" id="' + c.suggestId + '"></div>' +
+    '<p class="batch-format-hint" id="' + c.inputId + 'Hint"></p>' +
   '</div>';
+}
+
+// ซ่อนตอนรายการ Batch เด้งอยู่ (จะได้ไม่ดันรายการลง) และตอนค่าถูกแล้ว/ยังว่าง
+function updateBatchFormatHint_(key) {
+  var c = BATCH_COMBOS_[key];
+  var input = document.getElementById(c.inputId);
+  var hint = document.getElementById(c.inputId + "Hint");
+  var box = document.getElementById(c.suggestId);
+  if (!input || !hint) return;
+  var val = String(input.value || "").trim();
+  var suggestOpen = box && box.style.display === "block";
+
+  if (!val || suggestOpen || !c.allowFree || isValidManualBatch_(val)) {
+    hint.classList.remove("show");
+    hint.textContent = "";
+    return;
+  }
+  hint.textContent = /^\d+$/.test(val)
+    ? "Batch ต้องเป็นตัวเลข 10 หลัก (ตอนนี้ " + val.length + " หลัก) ถ้าไม่ทราบให้พิมพ์ N/A"
+    : "Batch ต้องเป็นตัวเลข 10 หลักเท่านั้น ถ้าไม่ทราบให้พิมพ์ N/A";
+  hint.classList.add("show");
 }
 
 function setBatchComboOptions_(key, options) {
@@ -3292,6 +3358,7 @@ function setBatchComboOptions_(key, options) {
   if (input) input.value = "";
   var box = document.getElementById(c.suggestId);
   if (box) { box.innerHTML = ""; box.style.display = "none"; }
+  updateBatchFormatHint_(key);
 }
 
 function onBatchComboInput_(key) {
@@ -3299,6 +3366,7 @@ function onBatchComboInput_(key) {
   var st = batchComboState_[key] || { options: [], matches: [] };
   var input = document.getElementById(c.inputId);
   var box = document.getElementById(c.suggestId);
+  if (/^n\/a$/i.test(String(input.value || "").trim())) input.value = "N/A";
   var q = String(input.value || "").trim().toLowerCase();
 
   var matches = q === "" ? [] : st.options.filter(function(o) {
@@ -3321,6 +3389,7 @@ function onBatchComboInput_(key) {
     box.style.display = matches.length ? "block" : "none";
   }
 
+  updateBatchFormatHint_(key);
   if (window[c.onChange]) window[c.onChange]();
 }
 
@@ -3332,17 +3401,19 @@ function pickBatchCombo_(key, i) {
   if (input) input.value = st.matches[i].batch;
   var box = document.getElementById(c.suggestId);
   if (box) { box.innerHTML = ""; box.style.display = "none"; }
+  updateBatchFormatHint_(key);
   if (window[c.onChange]) window[c.onChange]();
 }
 
-// true = Batch ในช่องใช้ได้ (allowFree ยอมทุกค่าที่ไม่ว่าง / ไม่งั้นต้องตรงกับรายการ)
+// true = Batch ในช่องใช้ได้ -- allowFree (พิมพ์เองได้) ต้องเป็นเลข 10 หลักหรือ N/A,
+// ช่องที่เหลือต้องตรงกับรายการที่มีอยู่จริง (ของเดิมในสต๊อก ไม่บังคับรูปแบบ)
 function batchComboIsValid_(key) {
   var c = BATCH_COMBOS_[key];
   var st = batchComboState_[key] || { options: [] };
   var input = document.getElementById(c.inputId);
   var val = String(input && input.value || "").trim();
   if (!val) return false;
-  if (c.allowFree) return true;
+  if (c.allowFree) return isValidManualBatch_(val);
   return st.options.some(function(o) { return String(o.batch) === val; });
 }
 
