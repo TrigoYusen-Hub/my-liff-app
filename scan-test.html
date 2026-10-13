@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ทดสอบสแกน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --bg-page: #040609;
+  --bg-card: #0D1119;
+  --bg-card-border: rgba(255,255,255,.07);
+  --text-primary: #F4F6FA;
+  --text-secondary: #8B96AC;
+  --accent-green: #1FD15E;
+  --accent-blue: #2E8BFF;
+  --accent-red: #FF4D4D;
+  --accent-orange: #FFA726;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: "Kanit", "Segoe UI", sans-serif;
+}
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--bg-card-border);
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+main {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.note {
+  margin: 0 0 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 14px;
+}
+
+.row > span:first-child { color: var(--text-secondary); flex: 0 0 auto; }
+.row > span:last-child { text-align: right; overflow-wrap: anywhere; }
+
+.btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.btn {
+  border: 0;
+  border-radius: 12px;
+  padding: 16px 8px;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.btn small { display: block; font-size: 12px; font-weight: 400; opacity: .85; margin-top: 2px; }
+.btn-old { background: #3A4254; }
+.btn-new { background: var(--accent-blue); }
+
+.log-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 0 8px;
+  font-weight: 800;
+}
+
+.link-btn {
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.log-item {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-left: 4px solid var(--accent-green);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.log-item.fail { border-left-color: var(--accent-red); }
+.log-item b { font-size: 15px; }
+.log-item .sub { color: var(--text-secondary); }
+.log-item .code { overflow-wrap: anywhere; }
+.empty { color: var(--text-secondary); font-size: 13px; }
+
+.ov {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ov video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center center;
+}
+
+.guide {
+  position: relative;
+  width: 64vw;
+  height: 64vw;
+  max-width: 320px;
+  max-height: 320px;
+}
+
+.corner { position: absolute; width: 44px; height: 44px; border: 6px solid #ffffff; }
+.corner.tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.corner.tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.corner.bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.corner.br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+
+.ov-status {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top));
+  left: 10px;
+  right: 10px;
+  background: rgba(0,0,0,.6);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #ffffff;
+}
+
+.ov-tools {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(3vh + 64px + 14px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.tool {
+  min-width: 56px;
+  height: 44px;
+  padding: 0 12px;
+  border: 2px solid rgba(255,255,255,.85);
+  border-radius: 22px;
+  background: rgba(0,0,0,.45);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.tool.on { background: #ffffff; color: #000000; }
+
+.cancel {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(3vh + env(safe-area-inset-bottom));
+  height: 64px;
+  border: 2px solid #ffffff;
+  border-radius: 12px;
+  background: rgba(0,0,0,.45);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 800;
+}
+</style>
+</head>
+<body>
+<div class="top">ทดสอบสแกน Tag / QR</div>
+<main>
+  <p class="note">หน้านี้ใช้ทดสอบอย่างเดียว ไม่บันทึกอะไรลงระบบ ลองสแกน Tag เดียวกันทั้ง 2 แบบ แล้วเทียบเวลาและความง่าย สังเกตด้วยว่าถูกถามขออนุญาตกล้องกี่ครั้ง</p>
+
+  <section class="card" id="infoCard"></section>
+
+  <div class="btns">
+    <button class="btn btn-old" type="button" onclick="scanOld_()">สแกนแบบเดิม<small>เหมือนในแอพตอนนี้</small></button>
+    <button class="btn btn-new" type="button" onclick="scanNew_()">สแกนแบบใหม่<small>ภาพชัด + ซูม + ตัวอ่านเครื่อง</small></button>
+  </div>
+
+  <div class="log-head"><span>ผลการสแกน</span><button class="link-btn" type="button" onclick="clearLog_()">ล้างผล</button></div>
+  <div id="log"><p class="empty">ยังไม่มีผล</p></div>
+</main>
+
+<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script>
+var ZX_FORMATS_ = [ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX];
+var IDLE_STOP_MS_ = 3 * 60 * 1000;
+var DEFAULT_ZOOM_ = 2;
+
+var cameraOpens_ = 0;
+var logItems_ = [];
+var nativeDetector_ = null;
+var nativeFormats_ = [];
+var zxReader_ = null;
+var session_ = null;
+
+// กล้องของ "แบบใหม่" -- เปิดครั้งเดียวแล้วเก็บไว้ใช้ซ้ำ (ไม่ต้องขอสิทธิ์ใหม่ทุกครั้งที่สแกน)
+// ปิดจริงเมื่อไม่ได้สแกนเกิน 3 นาที
+var newCam_ = { stream: null, track: null, caps: {}, idleTimer: null, zoom: DEFAULT_ZOOM_, hwZoom: false, torchOn: false };
+
+function escapeHtml_(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+function sleep_(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function deviceLabel_() {
+  var ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iPhone / iPad";
+  if (/Android/i.test(ua)) return "Android";
+  return "อื่นๆ";
+}
+
+async function cameraPermissionState_() {
+  try {
+    var p = await navigator.permissions.query({ name: "camera" });
+    return { granted: "อนุญาตแล้ว", prompt: "จะถาม", denied: "ถูกปฏิเสธ" }[p.state] || p.state;
+  } catch (e) {
+    return "เครื่องไม่บอก";
+  }
+}
+
+async function initNativeDetector_() {
+  if (!("BarcodeDetector" in window)) return;
+  try {
+    var supported = await BarcodeDetector.getSupportedFormats();
+    nativeFormats_ = ["qr_code", "data_matrix"].filter(function(f) { return supported.indexOf(f) !== -1; });
+    if (nativeFormats_.length) nativeDetector_ = new BarcodeDetector({ formats: nativeFormats_ });
+  } catch (e) {
+    nativeDetector_ = null;
+  }
+}
+
+async function renderInfo_() {
+  var perm = await cameraPermissionState_();
+  var camLive = !!(newCam_.track && newCam_.track.readyState === "live");
+  var rows = [
+    ["เครื่อง", deviceLabel_()],
+    ["เปิดในแอพ LINE", /\bLine\//i.test(navigator.userAgent) ? "ใช่" : "ไม่ใช่"],
+    ["ตัวอ่านของเครื่อง", nativeDetector_ ? "มี (" + nativeFormats_.join(", ") + ")" : "ไม่มี ใช้ ZXing"],
+    ["สิทธิ์กล้องตอนนี้", perm],
+    ["เปิดกล้องไปแล้ว", cameraOpens_ + " ครั้ง"],
+    ["กล้องแบบใหม่ค้างไว้", camLive ? "ค้างอยู่ (สแกนต่อไม่ต้องเปิดใหม่)" : "ปิดอยู่"]
+  ];
+  document.getElementById("infoCard").innerHTML = rows.map(function(r) {
+    return '<div class="row"><span>' + escapeHtml_(r[0]) + '</span><span>' + escapeHtml_(r[1]) + '</span></div>';
+  }).join("");
+}
+
+function openOverlay_(mode) {
+  var ov = document.createElement("div");
+  ov.className = "ov";
+  ov.innerHTML =
+    '<video muted playsinline autoplay></video>' +
+    '<div class="guide"><span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span></div>' +
+    '<div class="ov-status">' + (mode === "old" ? "แบบเดิม" : "แบบใหม่") + ' · กำลังเปิดกล้อง...</div>' +
+    '<div class="ov-tools"></div>' +
+    '<button class="cancel" type="button">ยกเลิก</button>';
+  document.body.appendChild(ov);
+  ov.querySelector(".cancel").addEventListener("click", cancelScan_);
+  return { ov: ov, video: ov.querySelector("video"), status: ov.querySelector(".ov-status"), tools: ov.querySelector(".ov-tools") };
+}
+
+function closeOverlay_(ui) {
+  if (ui && ui.ov && ui.ov.parentNode) ui.ov.parentNode.removeChild(ui.ov);
+}
+
+function cancelScan_() {
+  if (!session_) return;
+  session_.cancelled = true;
+  session_.done = true;
+  if (session_.reader) {
+    try { session_.reader.reset(); } catch (e) {}
+  }
+}
+
+function trackOf_(video) {
+  var s = video && video.srcObject;
+  return s && s.getVideoTracks ? s.getVideoTracks()[0] : null;
+}
+
+function addLog_(item) {
+  logItems_.unshift(item);
+  renderLog_();
+  renderInfo_();
+}
+
+function clearLog_() {
+  logItems_ = [];
+  renderLog_();
+}
+
+function renderLog_() {
+  var el = document.getElementById("log");
+  if (!logItems_.length) { el.innerHTML = '<p class="empty">ยังไม่มีผล</p>'; return; }
+  el.innerHTML = logItems_.map(function(it) {
+    var head = (it.mode === "old" ? "แบบเดิม" : "แบบใหม่") + " · " + (it.ok ? "อ่านได้ใน " + (it.ms / 1000).toFixed(1) + " วิ" : it.reason);
+    return '<div class="log-item' + (it.ok ? "" : " fail") + '">' +
+      '<b>' + escapeHtml_(head) + '</b><br>' +
+      (it.ok ? '<span class="sub">นับจากกล้องพร้อม ' + (it.msCam / 1000).toFixed(1) + ' วิ · ' + it.frames + ' เฟรม</span><br>' : '') +
+      '<span class="sub">ภาพ ' + escapeHtml_(it.res || "-") + ' · ' + escapeHtml_(it.zoom || "ไม่ซูม") + ' · ตัวอ่าน ' + escapeHtml_(it.engine || "-") + (it.openedNow ? ' · เปิดกล้องใหม่' : ' · ใช้กล้องเดิม') + '</span>' +
+      (it.text ? '<br><span class="code">' + escapeHtml_(it.text.length > 80 ? it.text.slice(0, 80) + "…" : it.text) + '</span>' : '') +
+    '</div>';
+  }).join("");
+}
+
+function cameraErrorText_(e) {
+  var n = e && e.name;
+  if (n === "NotAllowedError") return "ไม่ได้รับอนุญาตใช้กล้อง";
+  if (n === "NotFoundError" || n === "OverconstrainedError") return "ไม่พบกล้อง";
+  if (n === "NotReadableError") return "กล้องถูกใช้อยู่ที่อื่น";
+  return "เปิดกล้องไม่ได้: " + (e && e.message ? e.message : e);
+}
+
+// ===== แบบเดิม: เหมือน startScan() ในแอพตอนนี้ทุกอย่าง (ไม่ขอความละเอียด เปิดกล้องใหม่ทุกครั้ง) =====
+async function scanOld_() {
+  if (session_) return;
+  stopNewCamera_();
+  var ui = openOverlay_("old");
+  var hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, ZX_FORMATS_);
+  var reader = new ZXing.BrowserMultiFormatReader(hints);
+  var t0 = performance.now();
+  var tCam = 0;
+  var session = session_ = { mode: "old", reader: reader, cancelled: false, done: false };
+
+  ui.video.addEventListener("playing", function() {
+    tCam = performance.now();
+    var tr = trackOf_(ui.video);
+    ui.status.textContent = "แบบเดิม · ภาพ " + ui.video.videoWidth + "×" + ui.video.videoHeight + " · ตัวอ่าน ZXing" + (tr && tr.label ? " · " + tr.label : "");
+  });
+
+  cameraOpens_++;
+  var res = ui.video.videoWidth ? ui.video.videoWidth + "×" + ui.video.videoHeight : "";
+  try {
+    var result = await reader.decodeOnceFromConstraints({ video: { facingMode: "environment" } }, ui.video);
+    res = ui.video.videoWidth + "×" + ui.video.videoHeight;
+    if (navigator.vibrate) navigator.vibrate(80);
+    var now = performance.now();
+    addLog_({ mode: "old", ok: true, text: result.getText(), ms: now - t0, msCam: tCam ? now - tCam : now - t0, frames: "-", res: res, zoom: "ไม่ซูม", engine: "ZXing", openedNow: true });
+  } catch (e) {
+    res = ui.video.videoWidth ? ui.video.videoWidth + "×" + ui.video.videoHeight : res;
+    if (!session.cancelled) {
+      addLog_({ mode: "old", ok: false, reason: cameraErrorText_(e), res: res, engine: "ZXing", openedNow: true });
+    } else {
+      addLog_({ mode: "old", ok: false, reason: "กดยกเลิก (อ่านไม่ได้)", res: res, engine: "ZXing", openedNow: true });
+    }
+  } finally {
+    try { reader.reset(); } catch (e2) {}
+    closeOverlay_(ui);
+    session_ = null;
+  }
+}
+
+// ===== แบบใหม่ =====
+async function ensureNewCamera_() {
+  if (newCam_.track && newCam_.track.readyState === "live") {
+    newCam_.track.enabled = true;
+    return false;
+  }
+  cameraOpens_++;
+  var stream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+  });
+  newCam_.stream = stream;
+  newCam_.track = stream.getVideoTracks()[0];
+  newCam_.caps = (newCam_.track.getCapabilities && newCam_.track.getCapabilities()) || {};
+  newCam_.torchOn = false;
+  if (newCam_.caps.focusMode && newCam_.caps.focusMode.indexOf("continuous") !== -1) {
+    try { await newCam_.track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }); } catch (e) {}
+  }
+  return true;
+}
+
+function stopNewCamera_() {
+  clearTimeout(newCam_.idleTimer);
+  if (newCam_.stream) newCam_.stream.getTracks().forEach(function(t) { t.stop(); });
+  newCam_.stream = null;
+  newCam_.track = null;
+  newCam_.torchOn = false;
+  renderInfo_();
+}
+
+// ไม่ได้สแกนต่อ: หยุดส่งภาพไว้ก่อน (ยังถือสิทธิ์อยู่) ครบ 3 นาทีค่อยปิดจริง
+function parkNewCamera_() {
+  if (newCam_.track) newCam_.track.enabled = false;
+  clearTimeout(newCam_.idleTimer);
+  newCam_.idleTimer = setTimeout(stopNewCamera_, IDLE_STOP_MS_);
+}
+
+// ซูมด้วยกล้องจริงถ้าเครื่องรองรับ ไม่งั้นขยายภาพบนจอ + อ่านเฉพาะกลางภาพแทน (ผลเหมือนกัน)
+async function applyZoom_(video, z) {
+  newCam_.zoom = z;
+  var zc = newCam_.caps.zoom;
+  if (zc && typeof zc.max === "number" && zc.max > 1) {
+    var hz = Math.max(zc.min || 1, Math.min(zc.max, z));
+    try {
+      await newCam_.track.applyConstraints({ advanced: [{ zoom: hz }] });
+      newCam_.hwZoom = true;
+      video.style.transform = "";
+      return;
+    } catch (e) {}
+  }
+  newCam_.hwZoom = false;
+  video.style.transform = z > 1 ? "scale(" + z + ")" : "";
+}
+
+function zoomLabel_() {
+  if (newCam_.zoom <= 1) return "ไม่ซูม";
+  return "ซูม " + newCam_.zoom + "x (" + (newCam_.hwZoom ? "กล้อง" : "ขยายภาพ") + ")";
+}
+
+function sourceSize_(src) {
+  return { w: src.videoWidth || src.width || 0, h: src.videoHeight || src.height || 0 };
+}
+
+// ตัดเฉพาะกลางภาพ (ตรงกรอบเล็ง) มาอ่านที่ความละเอียดเต็ม -- ถ้าซูมแบบขยายภาพ กรอบจะเล็กลงตามซูม
+function cropCenter_(src, canvas, digitalZoom, maxSide) {
+  var s = sourceSize_(src);
+  if (!s.w || !s.h) return false;
+  var side = Math.min(s.w, s.h) * 0.8 / (digitalZoom || 1);
+  var out = Math.round(Math.min(side, maxSide || side));
+  canvas.width = out;
+  canvas.height = out;
+  var ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(src, (s.w - side) / 2, (s.h - side) / 2, side, side, 0, 0, out, out);
+  return true;
+}
+
+// แปลงเป็นขาวดำเอง -- HTMLCanvasElementLuminanceSource ของ ZXing รุ่นนี้กลับสีภาพทุกครั้งเว้นครั้ง
+// (เฟรมครึ่งหนึ่งเลยเสียไปกับภาพกลับสี) ที่นี่อ่านแบบปกติทุกเฟรม แล้วลองแบบกลับสีแค่ทุกเฟรมที่ 4
+// เผื่อ Tag ที่พิมพ์สีขาวบนพื้นดำ
+function zxDecodeCanvas_(canvas, frameNo) {
+  if (!zxReader_) {
+    zxReader_ = new ZXing.MultiFormatReader();
+    var h = new Map();
+    h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, ZX_FORMATS_);
+    h.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    zxReader_.setHints(h);
+  }
+  var w = canvas.width, hgt = canvas.height;
+  var px = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, hgt).data;
+  var lum = new Uint8ClampedArray(w * hgt);
+  for (var i = 0, j = 0; i < px.length; i += 4, j++) {
+    lum[j] = (306 * px[i] + 601 * px[i + 1] + 117 * px[i + 2] + 0x200) >> 10;
+  }
+  var src = new ZXing.RGBLuminanceSource(lum, w, hgt);
+  if (frameNo % 4 === 3) src = new ZXing.InvertedLuminanceSource(src);
+  try {
+    return zxReader_.decodeWithState(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src))).getText();
+  } catch (e) {
+    return null;
+  }
+}
+
+// คืน { text, engine } หรือ null -- ตัวอ่านของเครื่องลองทั้งกลางภาพและทั้งภาพสลับกัน
+async function decodeFrame_(src, canvas, frameNo) {
+  var digital = newCam_.hwZoom ? 1 : newCam_.zoom;
+  if (nativeDetector_) {
+    try {
+      var target = src;
+      if (frameNo % 2 === 0 && cropCenter_(src, canvas, digital)) target = canvas;
+      var codes = await nativeDetector_.detect(target);
+      if (codes && codes.length && codes[0].rawValue) return { text: codes[0].rawValue, engine: "ของเครื่อง" };
+      return null;
+    } catch (e) {
+      nativeDetector_ = null;
+    }
+  }
+  if (!cropCenter_(src, canvas, digital, 1000)) return null;
+  var text = zxDecodeCanvas_(canvas, frameNo);
+  return text ? { text: text, engine: "ZXing (กลางภาพ)" } : null;
+}
+
+async function scanNew_() {
+  if (session_) return;
+  clearTimeout(newCam_.idleTimer);
+  var ui = openOverlay_("new");
+  var t0 = performance.now();
+  var session = session_ = { mode: "new", cancelled: false, done: false };
+  var openedNow = false;
+
+  try {
+    openedNow = await ensureNewCamera_();
+  } catch (e) {
+    closeOverlay_(ui);
+    session_ = null;
+    addLog_({ mode: "new", ok: false, reason: cameraErrorText_(e), openedNow: true });
+    return;
+  }
+
+  ui.video.srcObject = newCam_.stream;
+  try { await ui.video.play(); } catch (e) {}
+  await applyZoom_(ui.video, newCam_.zoom);
+  var tCam = performance.now();
+
+  function renderTools() {
+    var html = [1, 2, 3].map(function(z) {
+      return '<button class="tool' + (newCam_.zoom === z ? " on" : "") + '" type="button" data-zoom="' + z + '">' + z + 'x</button>';
+    }).join("");
+    if (newCam_.caps.torch) html += '<button class="tool' + (newCam_.torchOn ? " on" : "") + '" type="button" data-torch="1">ไฟฉาย</button>';
+    ui.tools.innerHTML = html;
+  }
+  function renderStatus() {
+    ui.status.textContent = "แบบใหม่ · ภาพ " + ui.video.videoWidth + "×" + ui.video.videoHeight + " · " + zoomLabel_() +
+      " · ตัวอ่าน " + (nativeDetector_ ? "ของเครื่อง" : "ZXing") + (newCam_.track && newCam_.track.label ? " · " + newCam_.track.label : "") +
+      (openedNow ? " · เปิดกล้องใหม่" : " · ใช้กล้องเดิม");
+  }
+  ui.tools.addEventListener("click", async function(ev) {
+    var b = ev.target.closest("button");
+    if (!b) return;
+    if (b.getAttribute("data-zoom")) {
+      await applyZoom_(ui.video, Number(b.getAttribute("data-zoom")));
+    } else if (b.getAttribute("data-torch")) {
+      newCam_.torchOn = !newCam_.torchOn;
+      try { await newCam_.track.applyConstraints({ advanced: [{ torch: newCam_.torchOn }] }); } catch (e) { newCam_.torchOn = false; }
+    }
+    renderTools();
+    renderStatus();
+  });
+  renderTools();
+  renderStatus();
+
+  var canvas = document.createElement("canvas");
+  var frames = 0;
+  var found = null;
+  while (!session.done) {
+    if (!newCam_.track || newCam_.track.readyState !== "live") break;
+    if (ui.video.readyState >= 2) {
+      frames++;
+      found = await decodeFrame_(ui.video, canvas, frames);
+      if (found) break;
+    }
+    await sleep_(nativeDetector_ ? 50 : 20);
+  }
+
+  var res = ui.video.videoWidth + "×" + ui.video.videoHeight;
+  if (found) {
+    if (navigator.vibrate) navigator.vibrate(80);
+    var now = performance.now();
+    addLog_({ mode: "new", ok: true, text: found.text, ms: now - t0, msCam: now - tCam, frames: frames, res: res, zoom: zoomLabel_(), engine: found.engine, openedNow: openedNow });
+  } else {
+    addLog_({ mode: "new", ok: false, reason: session.cancelled ? "กดยกเลิก (อ่านไม่ได้)" : "กล้องหยุดทำงาน", res: res, zoom: zoomLabel_(), engine: nativeDetector_ ? "ของเครื่อง" : "ZXing", openedNow: openedNow });
+  }
+
+  if (newCam_.torchOn) {
+    try { await newCam_.track.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) {}
+    newCam_.torchOn = false;
+  }
+  ui.video.srcObject = null;
+  closeOverlay_(ui);
+  session_ = null;
+  parkNewCamera_();
+  renderInfo_();
+}
+
+initNativeDetector_().then(renderInfo_);
+</script>
+</body>
+</html>
