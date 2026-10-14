@@ -1622,6 +1622,455 @@ body {
   font-family: inherit;
 }
 
+.hm-green .hm-list-icon { color: var(--accent-green); background: rgba(31,209,94,.14); }
+
+/* ===== จัดการมิชชั่น ===== */
+.ml-add-btn {
+  width: 100%;
+  max-width: none;
+  height: 6.6vh;
+  margin: 0 0 1.8vh;
+  font-size: 2.6vh;
+}
+
+.ml-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0 0 1.6vh;
+}
+
+.ml-tab,
+.mf-seg button {
+  height: 5.2vh;
+  border: 2px solid var(--bg-card-border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: "Kanit", "Segoe UI", sans-serif;
+  font-size: 2vh;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ml-tab.on {
+  border-color: var(--accent-blue);
+  background: rgba(46,139,255,.12);
+  color: var(--text-primary);
+}
+
+.ml-item {
+  padding: 1.2vh 16px;
+}
+
+.ml-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 0.4vh;
+}
+
+.ml-badge {
+  font-size: 1.45vh;
+  font-weight: 700;
+  line-height: 1.5;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: rgba(255,255,255,.08);
+}
+
+.ml-badge.rework { color: var(--accent-purple); background: rgba(139,108,255,.16); }
+.ml-badge.warn { color: var(--accent-orange); background: rgba(255,167,38,.14); }
+.ml-badge.ok { color: var(--accent-green); background: rgba(31,209,94,.12); }
+
+.mc-status {
+  width: fit-content;
+  margin: -1vh auto 2vh;
+  padding: 0.2vh 14px;
+  border-radius: 999px;
+  font-size: 1.8vh;
+  font-weight: 800;
+}
+
+.mc-status.on { color: var(--accent-green); background: rgba(31,209,94,.12); }
+.mc-status.off { color: var(--text-secondary); background: rgba(255,255,255,.08); }
+
+.mc-part-title {
+  font-size: 2.1vh;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0.4vh 0 0.8vh;
+}
+
+.mc-sub {
+  font-size: 1.6vh;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 1.2vh 0 0.4vh;
+}
+
+.mc-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 1.9vh;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.mc-list li span {
+  color: var(--text-secondary);
+  font-size: 1.6vh;
+}
+
+.mc-note {
+  width: 340px;
+  max-width: calc(100% - 32px);
+  margin: 0 auto 2vh;
+  text-align: center;
+  font-size: 1.9vh;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mc-actions .static-primary-btn,
+.mc-actions .static-danger-btn,
+.mc-actions .static-approve-btn {
+  height: 7vh;
+  font-size: 2.6vh;
+  margin: 0 auto 1.4vh;
+}
+
+.mf-page {
+  padding: 2vh 16px 5vh;
+}
+
+.mf-label {
+  font-size: 1.7vh;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 1.8vh 0 0.8vh;
+}
+
+.mf-label:first-child {
+  margin-top: 0;
+}
+
+.mf-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mf-seg button {
+  height: 5.6vh;
+  font-size: 2.2vh;
+  font-weight: 800;
+}
+
+.mf-seg button.on {
+  border-color: var(--accent-green);
+  background: rgba(31,209,94,.1);
+  color: var(--text-primary);
+}
+
+.mf-seg button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.mf-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mf-prefix {
+  font-size: 2.4vh;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.mf-input {
+  width: 100%;
+  height: 5.5vh;
+  min-width: 0;
+  border: 2px solid var(--bg-card-border);
+  border-radius: 8px;
+  background: var(--bg-page);
+  padding: 0 12px;
+  color: var(--text-primary);
+  font-family: "Kanit", "Segoe UI", sans-serif;
+  font-size: 2.1vh;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.mf-input:focus {
+  border-color: var(--accent-blue);
+}
+
+.mf-input[readonly] {
+  color: var(--text-secondary);
+  border-style: dashed;
+}
+
+.mf-hint {
+  margin: 0.6vh 0 0;
+  font-size: 1.65vh;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.mf-hint.ok { color: var(--accent-green); }
+.mf-hint.bad { color: var(--accent-red); }
+.mf-hint.warn { color: var(--accent-orange); }
+
+.mf-locked-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 5.5vh;
+  padding: 0 12px;
+  border: 2px dashed var(--bg-card-border);
+  border-radius: 8px;
+  font-size: 2.2vh;
+  font-weight: 800;
+}
+
+.mf-locked-name svg,
+.mf-lock svg {
+  width: 2.2vh;
+  height: 2.2vh;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.mf-part {
+  margin-top: 2.2vh;
+  background: var(--bg-card);
+  border: 2px solid var(--bg-card-border);
+  border-radius: 14px;
+  padding: 1.6vh 14px 1.8vh;
+}
+
+.mf-part-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mf-part-title {
+  font-size: 2.3vh;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.mf-icon-btn {
+  width: 4.6vh;
+  height: 4.6vh;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255,77,77,.14);
+  color: var(--accent-red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mf-icon-btn svg {
+  width: 2.4vh;
+  height: 2.4vh;
+}
+
+.mf-field {
+  margin-top: 1.6vh;
+}
+
+.mf-field > label {
+  display: block;
+  font-size: 1.7vh;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 0.6vh;
+}
+
+.mf-tags {
+  border-top: 1px dashed var(--bg-card-border);
+}
+
+.mf-tag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 1vh 0;
+  border-bottom: 1px dashed var(--bg-card-border);
+}
+
+.mf-tag-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.mf-tag-code {
+  font-size: 2vh;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  overflow-wrap: anywhere;
+}
+
+.mf-tag-meta {
+  font-size: 1.55vh;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.mf-tag-meta.ok { color: var(--accent-green); }
+.mf-tag-meta.warn { color: var(--accent-orange); }
+.mf-tag-meta.bad { color: var(--accent-red); }
+
+.mf-empty {
+  padding: 1vh 0;
+  font-size: 1.8vh;
+  color: var(--accent-orange);
+}
+
+.mf-btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 1.2vh;
+}
+
+.mf-btn {
+  width: 100%;
+  min-height: 5.2vh;
+  padding: 0.6vh 10px;
+  border: 2px solid var(--bg-card-border);
+  border-radius: 10px;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: "Kanit", "Segoe UI", sans-serif;
+  font-size: 1.9vh;
+  font-weight: 700;
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.mf-btn svg {
+  width: 2.4vh;
+  height: 2.4vh;
+  flex: 0 0 auto;
+}
+
+.mf-btn.primary {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.mf-btn.dashed {
+  border-style: dashed;
+  margin-top: 1.2vh;
+}
+
+.mf-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.mf-manual {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 1vh;
+}
+
+.mf-manual .mf-btn {
+  width: auto;
+  padding: 0 16px;
+}
+
+.mf-defect {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 1vh;
+}
+
+.mf-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.65vh;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mf-check input {
+  width: 2.4vh;
+  height: 2.4vh;
+  margin: 0;
+  accent-color: var(--accent-purple);
+}
+
+.mf-lock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 5.5vh;
+  padding: 0 12px;
+  border: 2px dashed var(--bg-card-border);
+  border-radius: 8px;
+  font-size: 2vh;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mf-lock-note {
+  font-size: 1.45vh;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.mf-counter {
+  font-size: 1.7vh;
+  font-weight: 700;
+  margin-top: 0.2vh;
+}
+
+.mf-counter.ok { color: var(--accent-green); }
+.mf-counter.bad { color: var(--accent-red); }
+
+.mf-part-warn {
+  margin-top: 1.2vh;
+  padding: 1vh 12px;
+  border-radius: 10px;
+  background: rgba(255,167,38,.1);
+  border: 1.5px solid var(--accent-orange);
+  color: var(--accent-orange);
+  font-size: 1.7vh;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.mf-review-btn {
+  width: 100%;
+  max-width: none;
+  height: 7vh;
+  margin: 3vh 0 0;
+  font-size: 2.6vh;
+}
+
 .scan-overlay {
   position: fixed;
   inset: 0;
@@ -1878,7 +2327,7 @@ body {
       </button>
       <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
       <div class="credits-title">TRIGO REPORT</div>
-      <div class="credits-version">Version 3.3.1</div>
+      <div class="credits-version">Version 3.4.0</div>
       <div class="credits-divider"></div>
       <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>สร้างขึ้นเพื่อใช้สำหรับสร้างใบงานและใบลงชื่อประจำวัน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
       <div class="credits-divider"></div>
@@ -2780,6 +3229,957 @@ function submitAccessReject_() {
   });
 }
 
+// ===== จัดการมิชชั่น (Admin/Engineer) -- เพิ่ม / แก้ไข / ปิด-เปิด มิชชั่นใน Part_Master (ดู Missions.js ฝั่ง backend) =====
+var missionAdmin_ = { data: null, filter: "active", query: "", current: null };
+var missionForm_ = null;
+var missionUidSeq_ = 0;
+var MISSION_PREFIX_ = "LCBTH ";
+var MISSION_MAX_SLOTS_ = 6;
+var MISSION_MAX_PARTS_ = 10;
+var MISSION_DEFECT_MAX_LEN_ = 30;
+
+function missionUid_() {
+  missionUidSeq_++;
+  return "m" + missionUidSeq_;
+}
+
+function missionNorm_(v) {
+  return String(v || "").replace(/\s+/g, " ").trim();
+}
+
+function missionTypeLabel_(type) {
+  if (type === "rework") return "Rework";
+  if (type === "recheck") return "Recheck";
+  return "ปกติ";
+}
+
+function plusIcon_() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>';
+}
+
+function lockIcon_() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>';
+}
+
+function qrScanIcon_() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"></path><rect x="8" y="8" width="8" height="8" rx="1"></rect></svg>';
+}
+
+function keyboardIcon_() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"></path></svg>';
+}
+
+function copyIcon_() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg>';
+}
+
+// ตัวแกะ Tag ตัวเดียวกับ Parser.js ฝั่ง backend (ใช้โชว์ผลทันทีตอนสแกน) -- ตอนบันทึก backend แกะข้อความดิบซ้ำเองอีกรอบ
+function parseMissionTag_(raw) {
+  var cleaned = String(raw || "").trim().split(String.fromCharCode(29)).join("");
+  if (/\bP\d{10,18}\b/i.test(cleaned) || /\b1T[A-Z0-9]{4,30}\b/i.test(cleaned)) {
+    var text = cleaned.replace(/\s+/g, " ").trim();
+    var sc = text.match(/\bP(\d{10,18})\b/i);
+    var bt = text.match(/\b1T([A-Z0-9]{4,30})\b/i);
+    var q = text.match(/\bQ(\d+)\b/i);
+    return { ok: !!(sc && bt), tagType: "LARGE", scanCode: sc ? sc[1] : "", qty: q ? q[1] : "" };
+  }
+  var compact = cleaned.replace(/\s+/g, "");
+  if (/^01\d{14}/.test(compact)) {
+    var sc2 = compact.match(/^01(\d{14})10/);
+    var bt2 = compact.match(/^01\d{14}10(\d{10})/);
+    return { ok: !!(sc2 && bt2), tagType: "SMALL", scanCode: sc2 ? sc2[1] : "", qty: "" };
+  }
+  return { ok: false, tagType: "UNKNOWN", scanCode: "", qty: "" };
+}
+
+function findMissionByName_(name) {
+  var list = (missionAdmin_.data && missionAdmin_.data.missions) || [];
+  return list.filter(function(m) { return m.name === name; })[0] || null;
+}
+
+// ---------- รายการ ----------
+async function showMissionAdminList_() {
+  setPageTitle_("จัดการมิชชั่น");
+  document.getElementById("content").innerHTML = "";
+  var myNav = navStack_[navStack_.length - 1];
+
+  var res = null;
+  try {
+    res = await api("getMissionAdminData", { lineUserId: currentLineUserId });
+  } catch (e) {}
+
+  if (navStack_[navStack_.length - 1] !== myNav) return;
+
+  if (!res || !res.ok) {
+    document.getElementById("content").innerHTML =
+      '<div class="picker-page"><p class="ar-empty">' + escapeHtml((res && res.error) || "โหลดข้อมูลไม่สำเร็จ") + '</p></div>';
+    return;
+  }
+
+  missionAdmin_.data = res;
+  if (res.prefix) MISSION_PREFIX_ = res.prefix;
+  renderMissionAdminList_();
+}
+
+function renderMissionAdminList_() {
+  var missions = missionAdmin_.data.missions || [];
+  var activeCount = missions.filter(function(m) { return m.active; }).length;
+  var closedCount = missions.length - activeCount;
+
+  document.getElementById("content").innerHTML =
+    '<div class="picker-page">' +
+      '<button type="button" class="static-primary-btn ml-add-btn" onclick="startMissionForm_(\'add\')">' + plusIcon_() + '<span>เพิ่มมิชชั่น</span></button>' +
+      '<div class="ml-tabs">' +
+        '<button type="button" class="ml-tab' + (missionAdmin_.filter === "active" ? " on" : "") + '" onclick="setMissionListFilter_(\'active\')">เปิดอยู่ (' + activeCount + ')</button>' +
+        '<button type="button" class="ml-tab' + (missionAdmin_.filter === "closed" ? " on" : "") + '" onclick="setMissionListFilter_(\'closed\')">ปิดแล้ว (' + closedCount + ')</button>' +
+      '</div>' +
+      '<div class="picker-search"><input type="text" id="missionSearchInput" placeholder="ค้นหา มิชชั่น / เลขพาร์ท / ชื่อพาร์ท" value="' + escapeHtml(missionAdmin_.query) + '" oninput="onMissionSearch_(this.value)">' + searchIcon() + '</div>' +
+      '<div class="picker-list" id="missionList"></div>' +
+    '</div>';
+
+  renderMissionListItems_();
+}
+
+function setMissionListFilter_(filter) {
+  missionAdmin_.filter = filter;
+  renderMissionAdminList_();
+}
+
+function onMissionSearch_(value) {
+  missionAdmin_.query = value || "";
+  renderMissionListItems_();
+}
+
+function renderMissionListItems_() {
+  var box = document.getElementById("missionList");
+  if (!box) return;
+  var q = missionNorm_(missionAdmin_.query).toLowerCase();
+  var wantActive = missionAdmin_.filter === "active";
+
+  var shown = (missionAdmin_.data.missions || []).filter(function(m) {
+    if (!!m.active !== wantActive) return false;
+    if (!q) return true;
+    var hay = [m.name].concat(m.parts.map(function(p) { return p.partNumber + " " + p.partName; })).join(" ").toLowerCase();
+    return hay.indexOf(q) !== -1;
+  });
+
+  if (!shown.length) {
+    box.innerHTML = '<p class="ar-empty">' + (q ? "ไม่พบมิชชั่นที่ค้นหา" : (wantActive ? "ไม่มีมิชชั่นที่เปิดอยู่" : "ไม่มีมิชชั่นที่ปิดแล้ว")) + '</p>';
+    return;
+  }
+
+  box.innerHTML = shown.map(function(m, idx) {
+    var badges = [];
+    if (m.type !== "normal") badges.push('<span class="ml-badge rework">' + missionTypeLabel_(m.type) + '</span>');
+    if (m.parts.some(function(p) { return !p.tags.length; })) badges.push('<span class="ml-badge warn">ยังไม่มี Tag</span>');
+    if (m.hasWork) badges.push('<span class="ml-badge ok">มียอดแล้ว</span>');
+    var parts = m.parts.map(function(p) { return p.partNumber; }).join(", ");
+    var added = m.addedBy ? "เพิ่มโดย " + m.addedBy + " เมื่อ " + String(m.addedAt || "").split(" ")[0] : "";
+    return '<button type="button" class="picker-item ml-item" data-idx="' + idx + '">' +
+        '<span class="picker-item-text">' +
+          '<span class="picker-item-title">' + escapeHtml(m.name) + '</span>' +
+          '<span class="picker-item-sub">' + escapeHtml(m.parts.length + " พาร์ท · " + parts) + '</span>' +
+          (added ? '<span class="picker-item-sub">' + escapeHtml(added) + '</span>' : '') +
+          (badges.length ? '<span class="ml-badges">' + badges.join("") + '</span>' : '') +
+        '</span>' +
+        chevronIcon() +
+      '</button>';
+  }).join("");
+
+  box.querySelectorAll(".ml-item").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var m = shown[Number(btn.getAttribute("data-idx"))];
+      goto_(function() { showMissionAdminDetail_(m.name); });
+    });
+  });
+}
+
+// ---------- รายละเอียด ----------
+function missionPartCardHtml_(title, p, tagLines) {
+  var defects = p.defects.length
+    ? '<ul class="mc-list">' + p.defects.map(function(d) {
+        var rework = d.indexOf("Rework ") === 0;
+        return '<li>' + escapeHtml(rework ? d.slice(7) : d) + (rework ? ' <span>(Rework ได้)</span>' : '') + '</li>';
+      }).join("") + '</ul>'
+    : '<p class="mf-empty">ยังไม่มีปัญหา</p>';
+  var tags = tagLines.length
+    ? '<ul class="mc-list">' + tagLines.map(function(t) {
+        return '<li>' + escapeHtml(t.code) + (t.note ? ' <span>(' + escapeHtml(t.note) + ')</span>' : '') + '</li>';
+      }).join("") + '</ul>'
+    : '<p class="mf-empty">ยังไม่มี Tag — สแกนรับงานไม่ได้ ต้องกรอกเอง</p>';
+
+  return '<section class="confirm-card">' +
+      '<div class="mc-part-title">' + escapeHtml(title) + '</div>' +
+      arInfoRow_("เลขพาร์ท", p.partNumber) +
+      arInfoRow_("ชื่อพาร์ท", p.partName) +
+      arInfoRow_("QTY./Box", p.unitsPerBox ? String(p.unitsPerBox) : "-") +
+      arInfoRow_("ใช้ช่องในใบงาน", missionSlotCount_(p.defects) + "/" + MISSION_MAX_SLOTS_) +
+      '<div class="mc-sub">ปัญหา</div>' + defects +
+      '<div class="mc-sub">QR Tag</div>' + tags +
+    '</section>';
+}
+
+function missionSlotCount_(fullNames) {
+  return fullNames.reduce(function(sum, d) { return sum + (d.indexOf("Rework ") === 0 ? 2 : 1); }, 0);
+}
+
+function showMissionAdminDetail_(name) {
+  var m = findMissionByName_(name);
+  setPageTitle_("จัดการมิชชั่น");
+
+  if (!m) {
+    document.getElementById("content").innerHTML = '<div class="picker-page"><p class="ar-empty">ไม่พบมิชชั่นนี้</p></div>';
+    return;
+  }
+
+  missionAdmin_.current = m;
+  var s = m.stock || {};
+
+  document.getElementById("content").innerHTML =
+    '<div class="confirm-view mc-actions">' +
+      '<h2 class="confirm-heading">' + escapeHtml(m.name) + '</h2>' +
+      '<div class="mc-status ' + (m.active ? "on" : "off") + '">' + (m.active ? "เปิดอยู่" : "ปิดแล้ว") + '</div>' +
+      '<section class="confirm-card">' +
+        arInfoRow_("รูปแบบ", missionTypeLabel_(m.type)) +
+        arInfoRow_("เพิ่มโดย", m.addedBy ? m.addedBy + " · " + m.addedAt : "ไม่มีข้อมูล (เพิ่มก่อนมีระบบนี้)") +
+        (m.updatedBy ? arInfoRow_("แก้ไขล่าสุด", m.updatedBy + " · " + m.updatedAt) : "") +
+        arInfoRow_("การรับงาน/ลงยอด", m.hasWork ? "มีแล้ว" : "ยังไม่มี") +
+      '</section>' +
+      (m.hasWork ?
+        '<section class="confirm-card">' +
+          arInfoRow_("งานรอตรวจ", numberWithCommas_(s.pending || 0) + " ชิ้น") +
+          arInfoRow_("งานดีรอเบิก", numberWithCommas_(s.available || 0) + " ชิ้น") +
+          arInfoRow_("NG รอคืน", numberWithCommas_(s.ngOnHand || 0) + " ชิ้น") +
+        '</section>' : "") +
+      m.parts.map(function(p, i) {
+        return missionPartCardHtml_("พาร์ทที่ " + (i + 1), p, p.tags.map(function(c) { return { code: c, note: "" }; }));
+      }).join("") +
+      '<button type="button" class="static-primary-btn" style="margin-top:2.4vh;" onclick="startMissionForm_(\'edit\')">' + editIcon() + '<span>แก้ไขมิชชั่น</span></button>' +
+      (m.active
+        ? '<button type="button" id="missionToggleBtn" class="static-danger-btn" onclick="toggleMissionActive_(false)">' + xStrokeIcon_() + '<span>ปิดมิชชั่น</span></button>'
+        : '<button type="button" id="missionToggleBtn" class="static-approve-btn" onclick="toggleMissionActive_(true)">' + checkCircleWhiteIcon() + '<span>เปิดมิชชั่นอีกครั้ง</span></button>') +
+      '<div style="height:3vh;"></div>' +
+    '</div>';
+}
+
+function toggleMissionActive_(active) {
+  var m = missionAdmin_.current;
+  var btn = document.getElementById("missionToggleBtn");
+  if (!m || (btn && btn.disabled)) return;
+
+  var msg;
+  if (!active) {
+    var s = m.stock || {};
+    var left = [];
+    if (s.pending > 0) left.push("- งานรอตรวจ " + numberWithCommas_(s.pending) + " ชิ้น");
+    if (s.available > 0) left.push("- งานดีรอเบิก " + numberWithCommas_(s.available) + " ชิ้น");
+    if (s.ngOnHand > 0) left.push("- NG รอคืน " + numberWithCommas_(s.ngOnHand) + " ชิ้น");
+    msg = (left.length ? "⚠️ มิชชั่นนี้ยังมีของค้างในสต๊อก\n" + left.join("\n") + "\n\n" : "") +
+      "ปิดแล้ว มิชชั่นจะหายจากรายการในแอพ Hub พนักงานจะรับงาน / ลงยอด / เบิก / คืน NG ของมิชชั่นนี้ไม่ได้\n" +
+      "(ยอดและสต๊อกเดิมยังอยู่ครบ เปิดกลับได้ทุกเมื่อ)\n\nยืนยันปิด " + m.name + " ?";
+  } else {
+    msg = "เปิด " + m.name + " อีกครั้ง?\nมิชชั่นจะกลับมาให้พนักงานเลือกในแอพ Hub";
+  }
+  if (!confirm(msg)) return;
+
+  if (btn) btn.disabled = true;
+  api("setMissionActive", { lineUserId: currentLineUserId, payload: { name: m.name, active: active } }).then(function(data) {
+    if (data && data.ok) {
+      alert(active ? "เปิดมิชชั่นแล้ว" : "ปิดมิชชั่นแล้ว");
+      goFromHome_(showMissionAdminList_);
+      return;
+    }
+    if (btn) btn.disabled = false;
+    alert((data && data.error) || "ทำรายการไม่สำเร็จ");
+  }).catch(function() {
+    if (btn) btn.disabled = false;
+    alert("เชื่อมต่อไม่สำเร็จ");
+  });
+}
+
+// ---------- ฟอร์ม เพิ่ม / แก้ไข ----------
+function newMissionPart_() {
+  return {
+    uid: missionUid_(), originalPartNumber: "", partNumber: "", partName: "", unitsPerBox: "", qtyFromTag: false,
+    numberLocked: false, removable: true, manualOpen: false,
+    defects: [newMissionDefect_("", false)],
+    tags: []
+  };
+}
+
+function newMissionDefect_(fullName, locked) {
+  var rework = fullName.indexOf("Rework ") === 0;
+  return {
+    uid: missionUid_(),
+    original: fullName,
+    base: missionNorm_(rework ? fullName.slice(7) : fullName),
+    rework: rework,
+    locked: !!locked
+  };
+}
+
+// ชื่อที่จะบันทึก -- ไม่ได้แก้ชื่อ ส่งชื่อเดิมเป๊ะ ๆ (ชื่อเก่าบางตัวมีขึ้นบรรทัดอยู่ในชีท) ไม่งั้นยอดเก่าจะแยกเป็นอีกปัญหา
+function missionDefectFullName_(d) {
+  var full = (d.rework ? "Rework " : "") + missionNorm_(d.base);
+  if (d.original && missionNorm_(d.original) === full) return d.original;
+  return full;
+}
+
+function missionPartFromData_(p, copied) {
+  return {
+    uid: missionUid_(),
+    originalPartNumber: copied ? "" : p.partNumber,
+    partNumber: p.partNumber,
+    partName: p.partName,
+    unitsPerBox: p.unitsPerBox ? String(p.unitsPerBox) : "",
+    qtyFromTag: false,
+    numberLocked: !copied && !!p.hasWork,
+    removable: copied || !p.hasWork,
+    manualOpen: false,
+    defects: p.defects.map(function(d) { return newMissionDefect_(d, !copied && (p.lockedDefects || []).indexOf(d) !== -1); }),
+    tags: p.tags.map(function(code) { return { scanCode: code, raws: [], qtys: [], types: [], source: copied ? "copied" : "existing" }; })
+  };
+}
+
+function startMissionForm_(mode) {
+  var m = mode === "edit" ? missionAdmin_.current : null;
+
+  if (!m) {
+    missionForm_ = { mode: "add", original: null, type: "normal", number: "", nameLocked: false, parts: [newMissionPart_()] };
+  } else {
+    missionForm_ = {
+      mode: "edit",
+      original: m,
+      type: m.type === "rework" ? "rework" : "normal",
+      number: m.number || "",
+      nameLocked: !!(m.hasWork || m.type === "recheck" || !m.number),
+      parts: m.parts.map(function(p) { return missionPartFromData_(p, false); })
+    };
+  }
+
+  goto_(showMissionForm_);
+}
+
+function missionFormPart_(uid) {
+  return missionForm_ ? missionForm_.parts.filter(function(p) { return p.uid === uid; })[0] || null : null;
+}
+
+function missionFormName_() {
+  var f = missionForm_;
+  if (f.nameLocked) return f.original.name;
+  return MISSION_PREFIX_ + f.number + (f.type === "rework" ? "(Rework)" : "");
+}
+
+function rerenderMissionForm_() {
+  var y = window.scrollY;
+  showMissionForm_();
+  window.scrollTo(0, y);
+}
+
+function showMissionForm_() {
+  var f = missionForm_;
+  if (!f) {
+    goBack_();
+    return;
+  }
+  setPageTitle_(f.mode === "add" ? "เพิ่มมิชชั่น" : "แก้ไขมิชชั่น");
+
+  var typeHtml = (f.original && f.original.type === "recheck")
+    ? '<div class="mf-locked-name">' + lockIcon_() + '<span>Recheck</span></div>'
+    : '<div class="mf-seg">' +
+        '<button type="button" class="' + (f.type === "normal" ? "on" : "") + '"' + (f.nameLocked ? " disabled" : "") + ' onclick="setMissionFormType_(\'normal\')">ปกติ</button>' +
+        '<button type="button" class="' + (f.type === "rework" ? "on" : "") + '"' + (f.nameLocked ? " disabled" : "") + ' onclick="setMissionFormType_(\'rework\')">Rework</button>' +
+      '</div>';
+
+  var nameHtml = f.nameLocked
+    ? '<div class="mf-locked-name">' + lockIcon_() + '<span>' + escapeHtml(f.original.name) + '</span></div>' +
+      '<p class="mf-hint">' + (f.original.hasWork ? "มีการรับงาน/ลงยอดแล้ว เปลี่ยนชื่อหรือรูปแบบไม่ได้" : "ชื่อมิชชั่นนี้แก้จากเมนูนี้ไม่ได้") + '</p>'
+    : '<div class="mf-name-row"><span class="mf-prefix">' + escapeHtml(MISSION_PREFIX_.trim()) + '</span>' +
+        '<input id="mfNumber" class="mf-input" type="text" inputmode="decimal" autocomplete="off" maxlength="13" placeholder="เช่น 26.0079" value="' + escapeHtml(f.number) + '" oninput="onMissionNumberInput_(this)"></div>' +
+      '<p class="mf-hint" id="mfNameHint"></p>';
+
+  var copyHtml = (f.mode === "add" && f.type === "rework")
+    ? '<button type="button" class="mf-btn dashed" onclick="showMissionCopyPicker_()">' + copyIcon_() + '<span>คัดลอกพาร์ท / Tag / ปัญหา จากมิชชั่นปกติ</span></button>'
+    : "";
+
+  document.getElementById("content").innerHTML =
+    '<div class="mf-page">' +
+      '<div class="mf-label">รูปแบบมิชชั่น</div>' + typeHtml +
+      '<div class="mf-label">ชื่อมิชชั่น</div>' + nameHtml +
+      copyHtml +
+      f.parts.map(missionPartFormHtml_).join("") +
+      (f.parts.length < MISSION_MAX_PARTS_
+        ? '<button type="button" class="mf-btn dashed" style="margin-top:2vh;" onclick="addMissionPart_()">' + plusIcon_() + '<span>เพิ่มพาร์ท</span></button>'
+        : "") +
+      '<button type="button" class="static-primary-btn mf-review-btn" onclick="reviewMissionForm_()">' + checkCircleWhiteIcon() + '<span>ตรวจสอบก่อนบันทึก</span></button>' +
+    '</div>';
+
+  updateMissionNameHint_();
+  f.parts.forEach(function(p) { updateMissionSlots_(p.uid); });
+}
+
+function setMissionFormType_(type) {
+  if (!missionForm_ || missionForm_.nameLocked) return;
+  missionForm_.type = type;
+  rerenderMissionForm_();
+}
+
+function onMissionNumberInput_(input) {
+  var v = String(input.value || "").trim().replace(/^lcbth[\s.]*/i, "");
+  // พิมพ์เลขติดกัน 6 ตัว (260079) ใส่จุดให้เอง
+  if (/^\d{6}$/.test(v)) v = v.slice(0, 2) + "." + v.slice(2);
+  if (v !== input.value) input.value = v;
+  missionForm_.number = v;
+  updateMissionNameHint_();
+}
+
+function missionNameProblem_() {
+  var f = missionForm_;
+  if (f.nameLocked) return "";
+  if (!f.number) return "กรุณาพิมพ์เลขมิชชั่น เช่น 26.0079";
+  if (!/^\d{2}\.\d{4}$/.test(f.number)) return "รูปแบบต้องเป็น 26.0079 (ตัวเลข 2 หลัก จุด ตัวเลข 4 หลัก)";
+  var name = missionFormName_();
+  var same = (missionAdmin_.data.missions || []).filter(function(m) {
+    return m.name.toLowerCase() === name.toLowerCase() && !(f.original && m.name === f.original.name);
+  })[0];
+  if (same) return "มีมิชชั่น " + same.name + " อยู่แล้ว" + (same.active ? "" : " (ปิดอยู่ — เปิดกลับได้จากแท็บ 'ปิดแล้ว')");
+  return "";
+}
+
+function updateMissionNameHint_() {
+  var el = document.getElementById("mfNameHint");
+  if (!el) return;
+  var problem = missionNameProblem_();
+  if (problem) {
+    el.className = "mf-hint" + (missionForm_.number ? " bad" : "");
+    el.textContent = problem;
+  } else {
+    el.className = "mf-hint ok";
+    el.textContent = "ชื่อที่จะบันทึก: " + missionFormName_();
+  }
+}
+
+// Tag นี้ถูกใช้ที่ไหนอยู่แล้วบ้าง (ไม่นับมิชชั่นที่กำลังแก้)
+function missionTagUsage_(code) {
+  var f = missionForm_;
+  var out = [];
+  ((missionAdmin_.data && missionAdmin_.data.missions) || []).forEach(function(m) {
+    if (f && f.original && m.name === f.original.name) return;
+    m.parts.forEach(function(p) {
+      if (p.tags.indexOf(code) !== -1) out.push({ mission: m.name, partNumber: p.partNumber, active: m.active });
+    });
+  });
+  return out;
+}
+
+function missionTagState_(p, t) {
+  var notes = [];
+  var cls = "";
+  var scans = t.raws.length;
+
+  if (t.source === "existing") notes.push("มีอยู่เดิม" + (scans ? " · สแกนตรง " + scans + " กล่อง" : ""));
+  else if (t.source === "copied") notes.push("คัดลอกมา" + (scans ? " · สแกนตรง " + scans + " กล่อง" : ""));
+  else if (t.source === "manual") { notes.push("พิมพ์เอง ไม่ได้สแกน — ตรวจเลขให้ถูก"); cls = "warn"; }
+  else if (scans >= 2) { notes.push("สแกน " + scans + " กล่อง เลขตรงกัน ✓"); cls = "ok"; }
+  else { notes.push("สแกน 1 กล่อง — สแกนอีก 1 กล่องเพื่อยืนยัน"); cls = "warn"; }
+
+  if (t.types.length) notes.unshift(t.types.indexOf("LARGE") !== -1 ? "Tag ใหญ่" : "Tag เล็ก");
+
+  var blocked = false;
+  var myPart = missionNorm_(p.partNumber).toLowerCase();
+  missionTagUsage_(t.scanCode).forEach(function(u) {
+    var samePart = missionNorm_(u.partNumber).toLowerCase() === myPart;
+    if (!samePart && u.active) {
+      notes.push("เป็นของพาร์ท " + u.partNumber + " มิชชั่น " + u.mission + " ที่เปิดอยู่ — บันทึกไม่ได้");
+      cls = "bad";
+      blocked = true;
+    } else if (!samePart) {
+      notes.push("เคยใช้กับพาร์ท " + u.partNumber + " (มิชชั่น " + u.mission + " ปิดแล้ว)");
+      if (cls !== "bad") cls = "warn";
+    } else if (u.active) {
+      notes.push("ใช้ในมิชชั่น " + u.mission + " ด้วย");
+    }
+  });
+
+  return { text: notes.join(" · "), cls: cls, blocked: blocked };
+}
+
+// เลข Tag ประเภทเดียวกันที่สแกนได้ไม่ตรงกัน = อาจสแกนผิดกล่อง/ผิดพาร์ท
+function missionTagMismatch_(p) {
+  var byType = {};
+  p.tags.forEach(function(t) {
+    if (t.source !== "scan") return;
+    t.types.forEach(function(type) {
+      byType[type] = byType[type] || [];
+      if (byType[type].indexOf(t.scanCode) === -1) byType[type].push(t.scanCode);
+    });
+  });
+  var msgs = [];
+  if ((byType.LARGE || []).length > 1) msgs.push("Tag ใหญ่สแกนได้เลขไม่ตรงกัน " + byType.LARGE.length + " แบบ");
+  if ((byType.SMALL || []).length > 1) msgs.push("Tag เล็กสแกนได้เลขไม่ตรงกัน " + byType.SMALL.length + " แบบ");
+  return msgs.length ? msgs.join(" / ") + " — ตรวจสอบว่าทุกกล่องเป็นพาร์ทเดียวกัน แล้วลบเลขที่ผิดออก" : "";
+}
+
+function missionPartFormHtml_(p, idx) {
+  var f = missionForm_;
+  var canRemove = p.removable && f.parts.length > 1;
+  var uid = p.uid;
+
+  var tagsHtml = p.tags.length
+    ? '<div class="mf-tags">' + p.tags.map(function(t, ti) {
+        var st = missionTagState_(p, t);
+        return '<div class="mf-tag">' +
+            '<div class="mf-tag-main">' +
+              '<div class="mf-tag-code">' + escapeHtml(t.scanCode) + '</div>' +
+              '<div class="mf-tag-meta ' + st.cls + '">' + escapeHtml(st.text) + '</div>' +
+            '</div>' +
+            '<button type="button" class="mf-icon-btn" aria-label="ลบ Tag นี้" onclick="removeMissionTag_(\'' + uid + '\',' + ti + ')">' + trashIcon() + '</button>' +
+          '</div>';
+      }).join("") + '</div>'
+    : '<p class="mf-empty">ยังไม่มี Tag — กดสแกน QR บนกล่องงาน 2-3 กล่อง (ได้ทั้ง Tag ใหญ่และ Tag เล็ก)</p>';
+
+  var mismatch = missionTagMismatch_(p);
+
+  var defectsHtml = p.defects.map(function(d) {
+    if (d.locked) {
+      return '<div class="mf-defect">' +
+          '<div class="mf-lock">' + lockIcon_() + '<span>' + escapeHtml(missionNorm_(d.base)) + '</span></div>' +
+          '<span class="mf-lock-note">' + (d.rework ? "Rework ได้ · " : "") + 'มียอดแล้ว</span>' +
+          '<span></span>' +
+        '</div>';
+    }
+    return '<div class="mf-defect">' +
+        '<input class="mf-input" type="text" maxlength="' + MISSION_DEFECT_MAX_LEN_ + '" placeholder="ชื่อปัญหา เช่น Rust" value="' + escapeHtml(d.base) + '" oninput="setMissionDefectName_(\'' + uid + '\',\'' + d.uid + '\',this.value)">' +
+        '<label class="mf-check"><input type="checkbox"' + (d.rework ? " checked" : "") + ' onchange="setMissionDefectRework_(\'' + uid + '\',\'' + d.uid + '\',this.checked)">Rework ได้</label>' +
+        '<button type="button" class="mf-icon-btn" aria-label="ลบปัญหานี้" onclick="removeMissionDefect_(\'' + uid + '\',\'' + d.uid + '\')">' + trashIcon() + '</button>' +
+      '</div>';
+  }).join("");
+
+  var firstHasDefects = idx > 0 && f.parts[0].defects.some(function(d) { return missionNorm_(d.base); });
+  var canCopyDefects = firstHasDefects && !p.defects.some(function(d) { return d.locked; });
+
+  return '<section class="mf-part" id="mfPart_' + uid + '">' +
+      '<div class="mf-part-head">' +
+        '<span class="mf-part-title">พาร์ทที่ ' + (idx + 1) + '</span>' +
+        (canRemove ? '<button type="button" class="mf-icon-btn" aria-label="เอาพาร์ทนี้ออก" onclick="removeMissionPart_(\'' + uid + '\')">' + trashIcon() + '</button>' : '') +
+      '</div>' +
+      '<div class="mf-field"><label>เลขพาร์ท (Part No.)</label>' +
+        '<input class="mf-input" type="text" autocomplete="off" maxlength="60" placeholder="เช่น F-628243-0020.AXK" value="' + escapeHtml(p.partNumber) + '"' +
+          (p.numberLocked ? ' readonly' : ' oninput="setMissionPartField_(\'' + uid + '\',\'partNumber\',this.value)"') + '>' +
+        (p.numberLocked ? '<p class="mf-hint">มีการรับงาน/ลงยอดแล้ว เปลี่ยนเลขพาร์ทไม่ได้</p>' : '') +
+      '</div>' +
+      '<div class="mf-field"><label>ชื่อพาร์ท (Part Name)</label>' +
+        '<input class="mf-input" type="text" autocomplete="off" maxlength="60" placeholder="เช่น Needle Roller Bearing" value="' + escapeHtml(p.partName) + '" oninput="setMissionPartField_(\'' + uid + '\',\'partName\',this.value)">' +
+      '</div>' +
+      '<div class="mf-field"><label>QTY./Box (จำนวนต่อกล่อง)</label>' +
+        '<input class="mf-input" type="text" inputmode="numeric" autocomplete="off" maxlength="7" placeholder="ดึงจาก Tag ใหญ่ให้เอง หรือพิมพ์เอง" value="' + escapeHtml(p.unitsPerBox) + '" oninput="setMissionPartField_(\'' + uid + '\',\'unitsPerBox\',this.value)">' +
+        '<p class="mf-hint" id="mfQtyHint_' + uid + '">' + (p.qtyFromTag ? "ดึงจากเลข Q บน Tag ใหญ่ (แก้ได้)" : "ใช้ตอนพิมพ์ QR กล่อง") + '</p>' +
+      '</div>' +
+      '<div class="mf-field"><label>QR Tag</label>' + tagsHtml +
+        (mismatch ? '<div class="mf-part-warn">' + escapeHtml(mismatch) + '</div>' : '') +
+        '<div class="mf-btn-row">' +
+          '<button type="button" class="mf-btn primary" onclick="startMissionTagScan_(\'' + uid + '\')">' + qrScanIcon_() + '<span>สแกน QR Tag</span></button>' +
+          '<button type="button" class="mf-btn" onclick="toggleMissionManualTag_(\'' + uid + '\')">' + keyboardIcon_() + '<span>พิมพ์เลขเอง</span></button>' +
+        '</div>' +
+        (p.manualOpen
+          ? '<div class="mf-manual">' +
+              '<input id="mfManual_' + uid + '" class="mf-input" type="text" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="ตัวเลข 10-18 หลัก">' +
+              '<button type="button" class="mf-btn" onclick="addMissionManualTag_(\'' + uid + '\')">เพิ่ม</button>' +
+            '</div>' +
+            '<p class="mf-hint">เลขหลังตัว P บน Tag ใหญ่ หรือเลข 14 หลักหลัง 01 บน Tag เล็ก</p>'
+          : '') +
+      '</div>' +
+      '<div class="mf-field"><label>ปัญหา (Defect) — ติ๊ก "Rework ได้" ถ้าปัญหานั้นซ่อมได้</label>' +
+        defectsHtml +
+        '<div class="mf-counter" id="mfSlots_' + uid + '"></div>' +
+        '<button type="button" class="mf-btn dashed" id="mfAddDefect_' + uid + '" onclick="addMissionDefect_(\'' + uid + '\')">' + plusIcon_() + '<span>เพิ่มปัญหา</span></button>' +
+        (canCopyDefects ? '<button type="button" class="mf-btn dashed" onclick="copyMissionDefectsFromFirst_(\'' + uid + '\')">' + copyIcon_() + '<span>ใช้ปัญหาเหมือนพาร์ทที่ 1</span></button>' : '') +
+      '</div>' +
+    '</section>';
+}
+
+function setMissionPartField_(uid, field, value) {
+  var p = missionFormPart_(uid);
+  if (!p) return;
+  p[field] = value;
+  if (field === "unitsPerBox") {
+    p.qtyFromTag = false;
+    var hint = document.getElementById("mfQtyHint_" + uid);
+    if (hint) {
+      var bad = value.trim() && !/^\d+$/.test(value.trim());
+      hint.className = "mf-hint" + (bad ? " bad" : "");
+      hint.textContent = bad ? "ใส่เป็นตัวเลขจำนวนเต็มเท่านั้น" : "ใช้ตอนพิมพ์ QR กล่อง";
+    }
+  }
+}
+
+function addMissionPart_() {
+  var f = missionForm_;
+  if (!f || f.parts.length >= MISSION_MAX_PARTS_) return;
+  var p = newMissionPart_();
+  f.parts.push(p);
+  rerenderMissionForm_();
+  var el = document.getElementById("mfPart_" + p.uid);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function removeMissionPart_(uid) {
+  var f = missionForm_;
+  var p = missionFormPart_(uid);
+  if (!p || !p.removable || f.parts.length <= 1) return;
+  if (!confirm("เอาพาร์ท " + (missionNorm_(p.partNumber) || "นี้") + " ออกจากมิชชั่นนี้?")) return;
+  f.parts = f.parts.filter(function(x) { return x.uid !== uid; });
+  rerenderMissionForm_();
+}
+
+function missionPartSlots_(p) {
+  return p.defects.reduce(function(sum, d) {
+    return sum + (missionNorm_(d.base) ? (d.rework ? 2 : 1) : 0);
+  }, 0);
+}
+
+function updateMissionSlots_(uid) {
+  var p = missionFormPart_(uid);
+  var el = document.getElementById("mfSlots_" + uid);
+  if (!p || !el) return;
+  var slots = missionPartSlots_(p);
+  el.className = "mf-counter " + (slots > MISSION_MAX_SLOTS_ ? "bad" : "ok");
+  el.textContent = "ใช้ช่องในใบงาน " + slots + "/" + MISSION_MAX_SLOTS_ + (slots > MISSION_MAX_SLOTS_ ? " — เกิน ต้องลดปัญหาลง" : "") + " (ปัญหาที่ Rework ได้ใช้ 2 ช่อง)";
+  var add = document.getElementById("mfAddDefect_" + uid);
+  if (add) add.disabled = slots >= MISSION_MAX_SLOTS_;
+}
+
+function setMissionDefectName_(uid, duid, value) {
+  var p = missionFormPart_(uid);
+  if (!p) return;
+  p.defects.forEach(function(d) { if (d.uid === duid) d.base = value; });
+  updateMissionSlots_(uid);
+}
+
+function setMissionDefectRework_(uid, duid, checked) {
+  var p = missionFormPart_(uid);
+  if (!p) return;
+  p.defects.forEach(function(d) { if (d.uid === duid) d.rework = !!checked; });
+  updateMissionSlots_(uid);
+}
+
+function addMissionDefect_(uid) {
+  var p = missionFormPart_(uid);
+  if (!p || missionPartSlots_(p) >= MISSION_MAX_SLOTS_) return;
+  p.defects.push(newMissionDefect_("", false));
+  rerenderMissionForm_();
+  var inputs = document.querySelectorAll("#mfPart_" + uid + " .mf-defect input.mf-input");
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function removeMissionDefect_(uid, duid) {
+  var p = missionFormPart_(uid);
+  if (!p) return;
+  p.defects = p.defects.filter(function(d) { return d.uid !== duid || d.locked; });
+  rerenderMissionForm_();
+}
+
+function copyMissionDefectsFromFirst_(uid) {
+  var f = missionForm_;
+  var p = missionFormPart_(uid);
+  if (!p || p.defects.some(function(d) { return d.locked; })) return;
+  var originals = p.defects.map(function(d) { return d.original; }).filter(Boolean);
+  p.defects = f.parts[0].defects.filter(function(d) { return missionNorm_(d.base); }).map(function(d) {
+    var full = (d.rework ? "Rework " : "") + missionNorm_(d.base);
+    var keep = originals.filter(function(o) { return missionNorm_(o) === full; })[0];
+    return newMissionDefect_(keep || full, false);
+  });
+  rerenderMissionForm_();
+}
+
+// ---------- Tag ----------
+function startMissionTagScan_(uid) {
+  activeScanHandler_ = function(text) { onMissionTagScanned_(uid, text); };
+  startScan();
+}
+
+// จำนวนต่อกล่องจาก Tag ใหญ่: ใช้ค่าที่เจอบ่อยสุด (กล่องเศษที่จำนวนน้อยกว่าจะไม่ชนะ) เท่ากันเอาค่ามากกว่า
+function missionCommonQty_(p) {
+  var counts = {};
+  p.tags.forEach(function(t) { t.qtys.forEach(function(q) { if (q > 0) counts[q] = (counts[q] || 0) + 1; }); });
+  var best = 0;
+  Object.keys(counts).forEach(function(k) {
+    var q = Number(k);
+    if (!best || counts[k] > counts[best] || (counts[k] === counts[best] && q > best)) best = q;
+  });
+  return best;
+}
+
+function addMissionTag_(p, code, raw, parsed) {
+  var f = missionForm_;
+  var other = f.parts.filter(function(x) { return x !== p && x.tags.some(function(t) { return t.scanCode === code; }); })[0];
+  if (other) {
+    alert("Tag " + code + " อยู่ในพาร์ท " + (missionNorm_(other.partNumber) || "อื่น") + " ของมิชชั่นนี้แล้ว");
+    return false;
+  }
+
+  var tag = p.tags.filter(function(t) { return t.scanCode === code; })[0];
+  if (!raw) {
+    if (tag) {
+      alert("มี Tag " + code + " อยู่แล้ว");
+      return false;
+    }
+    p.tags.push({ scanCode: code, raws: [], qtys: [], types: [], source: "manual" });
+    return true;
+  }
+
+  if (tag && tag.raws.indexOf(raw) !== -1) {
+    alert("กล่องนี้สแกนไปแล้ว (ข้อมูลเหมือนเดิมทุกตัว)\nลองสแกนกล่องอื่น");
+    return false;
+  }
+  if (!tag) {
+    tag = { scanCode: code, raws: [], qtys: [], types: [], source: "scan" };
+    p.tags.push(tag);
+  }
+  if (tag.source === "manual") tag.source = "scan";
+  tag.raws.push(raw);
+  if (parsed.qty) tag.qtys.push(Number(parsed.qty));
+  if (tag.types.indexOf(parsed.tagType) === -1) tag.types.push(parsed.tagType);
+
+  if (parsed.qty && (!String(p.unitsPerBox || "").trim() || p.qtyFromTag)) {
+    var q = missionCommonQty_(p);
+    if (q > 0) {
+      p.unitsPerBox = String(q);
+      p.qtyFromTag = true;
+    }
+  }
+  return true;
+}
+
+function onMissionTagScanned_(uid, raw) {
+  var p = missionFormPart_(uid);
+  if (!p) return;
+  var parsed = parseMissionTag_(raw);
+  if (!parsed.ok) {
+    alert("อ่าน Tag นี้ไม่ได้\nต้องเป็น QR บน Tag ใหญ่ หรือ Tag เล็ก ของกล่องงาน");
+    return;
+  }
+  if (addMissionTag_(p, parsed.scanCode, raw, parsed)) {
+    rerenderMissionForm_();
+  }
+}
+
+function toggleMissionManualTag_(uid) {
+  var p = missionFormPart_(uid);
+  if (!p) return;
+  p.manualOpen = !p.manualOpen;
+  rerenderMissionForm_();
+  var input = document.getElementById("mfManual_" + uid);
+  if (input) input.focus();
+}
+
+function addMissionManualTag_(uid) {
+  var p = missionFormPart_(uid);
+  var input = document.getElementById("mfManual_" + uid);
+  if (!p || !input) return;
+  var code = String(input.value || "").replace(/[\s-]/g, "");
+  if (!/^\d{10,18}$/.test(code)) {
+    alert("เลข Tag ต้องเป็นตัวเลข 10-18 หลัก");
+    return;
+  }
+  if (addMissionTag_(p, code, "", null)) {
+    p.manualOpen = false;
+    rerenderMissionForm_();
+  }
+}
+
+function removeMissionTag_(uid, index) {
+  var p = missionFormPart_(uid);
+  if (!p || !p.tags[index]) return;
+  p.tags.splice(index, 1);
+  if (p.qtyFromTag) {
+    var q = missionCommonQty_(p);
+    if (q > 0) p.unitsPerBox = String(q);
+  }
+  rerenderMissionForm_();
+}
+
+// ---------- Rework: คัดลอกจากมิชชั่นปกติ ----------
+function showMissionCopyPicker_() {
+  goto_(function() {
+    setPageTitle_("คัดลอกจากมิชชั่นปกติ");
+    var sources = ((missionAdmin_.data && missionAdmin_.data.missions) || []).filter(function(m) { return m.type === "normal"; });
+    if (!sources.length) {
+      document.getElementById("content").innerHTML = '<div class="picker-page"><p class="ar-empty">ไม่มีมิชชั่นปกติให้คัดลอก</p></div>';
+      return;
+    }
+    renderPicker_({
+      context: [],
+      heading: "เลือกมิชชั่นต้นทาง",
+      showSearch: true,
+      searchPlaceholder: "ค้นหามิชชั่น / เลขพาร์ท",
+      items: sources.map(function(m) {
+        return { title: m.name + (m.active ? "" : " (ปิดแล้ว)"), sub: m.parts.map(function(p) { return p.partNumber; }).join(", "), mission: m };
+      }),
+      onSelect: function(item) { copyMissionFromSource_(item.mission); }
+    });
+  });
+}
+
+function copyMissionFromSource_(src) {
+  var f = missionForm_;
+  if (!f) return;
+  var hasInput = f.parts.some(function(p) {
+    return missionNorm_(p.partNumber) || missionNorm_(p.partName) || p.tags.length || p.defects.some(function(d) { return missionNorm_(d.base); });
+  });
+  if (hasInput && !confirm("แทนที่พาร์ทที่กรอกไว้ ด้วยข้อมูลจาก " + src.name + " ?")) return;
+
+  f.parts = src.parts.map(function(p) { return missionPartFromData_(p, true); });
+  if (!f.number && src.number) f.number = src.number;
+  goBack_();
+}
+
+// ---------- ตรวจ + ยืนยัน + บันทึก ----------
+function validateMissionForm_() {
+  var f = missionForm_;
+  var errors = [];
+  var nameProblem = missionNameProblem_();
+  if (nameProblem) errors.push(nameProblem);
+
+  var seenParts = {};
+  f.parts.forEach(function(p, i) {
+    var label = "พาร์ทที่ " + (i + 1);
+    var pn = missionNorm_(p.partNumber);
+    if (!pn) errors.push(label + ": กรุณากรอกเลขพาร์ท");
+    else if (seenParts[pn.toLowerCase()]) errors.push(label + ": เลขพาร์ท " + pn + " ซ้ำกับพาร์ทอื่น");
+    seenParts[pn.toLowerCase()] = true;
+    if (!missionNorm_(p.partName)) errors.push(label + ": กรุณากรอกชื่อพาร์ท");
+    var qty = String(p.unitsPerBox || "").trim();
+    if (qty && (!/^\d+$/.test(qty) || Number(qty) < 1)) errors.push(label + ": QTY./Box ต้องเป็นตัวเลขจำนวนเต็มมากกว่า 0");
+
+    var named = p.defects.filter(function(d) { return missionNorm_(d.base); });
+    if (named.length !== p.defects.length) errors.push(label + ": มีช่องปัญหาว่าง — กรอกชื่อ หรือกดลบช่องนั้น");
+    if (!named.length) errors.push(label + ": ใส่ปัญหาอย่างน้อย 1 อย่าง");
+    var seenDefects = {};
+    named.forEach(function(d) {
+      var base = missionNorm_(d.base);
+      if (!d.locked && /^(rework|scrap)\b/i.test(base)) errors.push(label + ": ชื่อปัญหา \"" + base + "\" ห้ามขึ้นต้นด้วย Rework / Scrap (ใช้ช่องติ๊ก Rework ได้ แทน)");
+      if (!d.locked && base.length > MISSION_DEFECT_MAX_LEN_) errors.push(label + ": ชื่อปัญหา \"" + base + "\" ยาวเกิน " + MISSION_DEFECT_MAX_LEN_ + " ตัวอักษร");
+      if (seenDefects[base.toLowerCase()]) errors.push(label + ": ปัญหา \"" + base + "\" ซ้ำกัน");
+      seenDefects[base.toLowerCase()] = true;
+    });
+    if (missionPartSlots_(p) > MISSION_MAX_SLOTS_) errors.push(label + ": ปัญหาใช้ช่องในใบงานเกิน " + MISSION_MAX_SLOTS_ + " ช่อง");
+    p.tags.forEach(function(t) {
+      if (missionTagState_(p, t).blocked) errors.push(label + ": Tag " + t.scanCode + " เป็นของพาร์ทอื่นในมิชชั่นที่ยังเปิดอยู่");
+    });
+  });
+
+  return errors;
+}
+
+function reviewMissionForm_() {
+  var errors = validateMissionForm_();
+  if (errors.length) {
+    alert("กรุณาแก้ไขก่อน:\n- " + errors.slice(0, 6).join("\n- ") + (errors.length > 6 ? "\n(และอีก " + (errors.length - 6) + " ข้อ)" : ""));
+    return;
+  }
+  goto_(showMissionConfirm_);
+}
+
+function missionFormWarnings_() {
+  var f = missionForm_;
+  var out = [];
+  f.parts.forEach(function(p) {
+    var pn = missionNorm_(p.partNumber);
+    if (!p.tags.length) out.push("พาร์ท " + pn + " ยังไม่มี Tag — สแกนรับงานไม่ได้ พนักงานต้องกรอกเอง");
+    p.tags.forEach(function(t) {
+      if (t.source === "scan" && t.raws.length < 2) out.push("Tag " + t.scanCode + " (" + pn + ") สแกนแค่ 1 กล่อง");
+      if (t.source === "manual") out.push("Tag " + t.scanCode + " (" + pn + ") พิมพ์เอง ไม่ได้สแกนยืนยัน");
+      var st = missionTagState_(p, t);
+      if (st.cls === "warn" && /ปิดแล้ว/.test(st.text)) out.push("Tag " + t.scanCode + " เคยใช้กับพาร์ทอื่นในมิชชั่นที่ปิดแล้ว");
+    });
+    var mismatch = missionTagMismatch_(p);
+    if (mismatch) out.push("พาร์ท " + pn + ": " + mismatch);
+    if (!String(p.unitsPerBox || "").trim()) out.push("พาร์ท " + pn + " ยังไม่มี QTY./Box — พิมพ์ QR กล่องไม่ได้");
+  });
+  return out;
+}
+
+function showMissionConfirm_() {
+  var f = missionForm_;
+  if (!f) {
+    goBack_();
+    return;
+  }
+  setPageTitle_("ตรวจสอบก่อนบันทึก");
+
+  var warnings = missionFormWarnings_();
+  var partsHtml = f.parts.map(function(p, i) {
+    var view = {
+      partNumber: missionNorm_(p.partNumber),
+      partName: missionNorm_(p.partName),
+      unitsPerBox: String(p.unitsPerBox || "").trim(),
+      defects: p.defects.map(missionDefectFullName_)
+    };
+    var tags = p.tags.map(function(t) {
+      var note = t.source === "existing" ? "มีอยู่เดิม" : (t.source === "copied" ? "คัดลอกมา" : (t.source === "manual" ? "พิมพ์เอง" : "สแกน " + t.raws.length + " กล่อง"));
+      if (t.types.length) note = (t.types.indexOf("LARGE") !== -1 ? "Tag ใหญ่" : "Tag เล็ก") + " · " + note;
+      return { code: t.scanCode, note: note };
+    });
+    return missionPartCardHtml_("พาร์ทที่ " + (i + 1), view, tags);
+  }).join("");
+
+  document.getElementById("content").innerHTML =
+    '<div class="confirm-view mc-actions">' +
+      '<h2 class="confirm-heading">ตรวจสอบก่อนบันทึก</h2>' +
+      warnings.map(arWarning_).join("") +
+      '<section class="confirm-card">' +
+        arInfoRow_("ชื่อมิชชั่น", missionFormName_()) +
+        arInfoRow_("รูปแบบ", (f.original && f.original.type === "recheck") ? "Recheck" : missionTypeLabel_(f.type)) +
+        arInfoRow_("จำนวนพาร์ท", f.parts.length + " พาร์ท") +
+        (f.mode === "edit" ? arInfoRow_("สถานะ", f.original.active ? "เปิดอยู่" : "ปิดอยู่") : arInfoRow_("สถานะ", "เปิดใช้งานทันที")) +
+      '</section>' +
+      partsHtml +
+      '<p class="mc-note">ข้อมูลถูกต้องตามนี้ใช่ไหม?<br><span style="font-weight:400;color:var(--text-secondary);font-size:1.7vh;">กดยืนยันแล้ว ระบบบันทึกลง Part_Master ให้เลย</span></p>' +
+      '<button type="button" id="missionSaveBtn" class="static-approve-btn" onclick="submitMissionForm_()">' + checkCircleWhiteIcon() + '<span>ถูกต้อง บันทึกเลย</span></button>' +
+      '<button type="button" class="static-secondary-btn" onclick="goBack_()"><span>กลับไปแก้ไข</span></button>' +
+      '<div style="height:3vh;"></div>' +
+    '</div>';
+}
+
+function submitMissionForm_() {
+  var f = missionForm_;
+  var btn = document.getElementById("missionSaveBtn");
+  if (!f || (btn && btn.disabled)) return;
+  if (btn) btn.disabled = true;
+
+  var payload = {
+    mode: f.mode,
+    originalName: f.original ? f.original.name : "",
+    type: f.type,
+    number: f.nameLocked ? null : f.number,
+    parts: f.parts.map(function(p) {
+      return {
+        originalPartNumber: p.originalPartNumber || "",
+        partNumber: missionNorm_(p.partNumber),
+        partName: missionNorm_(p.partName),
+        unitsPerBox: String(p.unitsPerBox || "").trim(),
+        defects: p.defects.map(missionDefectFullName_),
+        tags: p.tags.map(function(t) { return { scanCode: t.scanCode, raws: t.raws.slice(0, 10) }; })
+      };
+    })
+  };
+
+  api("saveMission", { lineUserId: currentLineUserId, payload: payload }).then(function(data) {
+    if (data && data.ok) {
+      alert(data.changed === false ? "ไม่มีอะไรเปลี่ยนแปลง" : "บันทึกเรียบร้อย\n" + data.mission);
+      missionForm_ = null;
+      goFromHome_(showMissionAdminList_);
+      return;
+    }
+    if (btn) btn.disabled = false;
+    alert((data && data.error) || "บันทึกไม่สำเร็จ");
+  }).catch(function() {
+    if (btn) btn.disabled = false;
+    alert("เชื่อมต่อไม่สำเร็จ");
+  });
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -2885,6 +4285,7 @@ function showHomeChoice_() {
   var iconList = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9h10M7 13h10M7 17h6"></path></svg>';
   var iconDocPlus = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M12 12v6M9 15h6"></path></svg>';
   var iconClock = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
+  var iconBox = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8"></path><path d="M12 13v8"></path></svg>';
   var iconUserPlus = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"></path><path d="M19 8v6M16 11h6"></path></svg>';
 
   document.getElementById("content").innerHTML =
@@ -2912,6 +4313,7 @@ function showHomeChoice_() {
         '<div class="hm-section">' +
           '<div class="hm-section-label hm-admin-label">Admin / Engineer</div>' +
           (showAccessRequests ? hmListCard('hm-orange', 'คำขอเข้าใช้งาน', iconUserPlus, 'goFromHome_(showAccessRequestList_)', pendingAccessRequestsCount_) : '') +
+          hmListCard('hm-green', 'จัดการมิชชั่น', iconBox, 'goFromHome_(showMissionAdminList_)') +
           hmListCard('hm-pink', 'บันทึกรองาน', iconClock, 'goFromHome_(showWaitForWorkDatePicker_)') +
         '</div>'
         : '') +
@@ -2924,7 +4326,7 @@ function showHomeChoice_() {
       '<div class="hm-footer-divider"></div>' +
       '<div class="hm-footer-brand-wrap">' +
         '<div class="footer-brand">TRIGO REPORT</div>' +
-        '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.3.1<br>&copy; 2026 TRIGO</div>' +
+        '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.4.0<br>&copy; 2026 TRIGO</div>' +
       '</div>' +
     '</footer>';
 }

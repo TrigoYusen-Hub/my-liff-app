@@ -2183,7 +2183,7 @@ footer {
       <div class="footer-divider"></div>
       <div class="footer-brand-wrap">
         <div class="footer-brand">TRIGO YUSEN HUB</div>
-        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.3.1<br>&copy; 2026 TRIGO</div>
+        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.4.0<br>&copy; 2026 TRIGO</div>
       </div>
     </footer>
 </main>
@@ -2200,7 +2200,7 @@ footer {
     </button>
     <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
     <div class="credits-title">TRIGO YUSEN HUB</div>
-    <div class="credits-version">Version 3.3.1</div>
+    <div class="credits-version">Version 3.4.0</div>
     <div class="credits-divider"></div>
     <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>เพื่อใช้ในการบันทึกข้อมูลงาน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
     <div class="credits-divider"></div>
@@ -5408,7 +5408,7 @@ async function lookupPrintQrPartAndQty_(mission, partNumber) {
 
   var qtyRes;
   try {
-    qtyRes = await api("getUnitsPerBox", { partNumber: partNumber });
+    qtyRes = await api("getUnitsPerBox", { partNumber: partNumber, mission: mission });
   } catch (e) {
     qtyRes = { ok: false };
   }
