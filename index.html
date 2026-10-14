@@ -1326,6 +1326,27 @@ footer {
   box-sizing: border-box;
 }
 
+.defect-other {
+  margin-top: 1.6vh;
+  padding-top: 1.2vh;
+  border-top: 1px dashed rgba(255,77,77,.35);
+}
+
+.defect-other-label {
+  margin: 0 0 0.8vh;
+  color: var(--text-secondary);
+  font-size: 2.1vh;
+}
+
+.defect-other-label span {
+  font-size: 1.7vh;
+}
+
+.defect-other .defect-field-row input {
+  width: 100%;
+  min-width: 0;
+}
+
 .defect-sum-status {
   margin-top: 0.5vh;
   font-size: 1.9vh;
@@ -2162,7 +2183,7 @@ footer {
       <div class="footer-divider"></div>
       <div class="footer-brand-wrap">
         <div class="footer-brand">TRIGO YUSEN HUB</div>
-        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.2.0<br>&copy; 2026 TRIGO</div>
+        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.3.0<br>&copy; 2026 TRIGO</div>
       </div>
     </footer>
 </main>
@@ -2179,7 +2200,7 @@ footer {
     </button>
     <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
     <div class="credits-title">TRIGO YUSEN HUB</div>
-    <div class="credits-version">Version 3.2.0</div>
+    <div class="credits-version">Version 3.3.0</div>
     <div class="credits-divider"></div>
     <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>เพื่อใช้ในการบันทึกข้อมูลงาน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
     <div class="credits-divider"></div>
@@ -4041,8 +4062,52 @@ function renderDefectSectionHtml_(defects) {
   return '<div class="defect-section" id="defectSection">' +
     '<p class="defect-section-label">แยกประเภท NG</p>' +
     rows +
+    otherDefectRowHtml_("อื่นๆ") +
     '<p class="defect-sum-status" id="defectSumStatus"></p>' +
   '</div>';
+}
+
+// ---- ปัญหา "อื่นๆ" (พิมพ์ชื่อเอง) สำหรับปัญหาที่ไม่อยู่ในรายการของมิชชั่น -- นับเป็น NG เสมอ
+// ชื่อที่พิมพ์จะไปเป็นคอลัมน์ใหม่ในใบงาน (ดู buildTraceabilityDefectPlan_ ใน Report.js) ถ้าพิมพ์
+// ชื่อตรงกับปัญหาที่มีในรายการอยู่แล้ว (ไม่สนตัวพิมพ์เล็กใหญ่) จะรวมเข้าปัญหานั้นแทน
+var OTHER_DEFECT_MAX_LEN_ = 30;
+
+function otherDefectRowHtml_(label) {
+  return '<div class="defect-other">' +
+    '<p class="defect-other-label">' + escapeHtml(label) + ' <span>(พิมพ์ชื่อปัญหาเอง)</span></p>' +
+    '<div class="defect-field-row">' +
+      '<input type="text" id="defectOtherName" maxlength="' + OTHER_DEFECT_MAX_LEN_ + '" placeholder="ชื่อปัญหา" autocomplete="off" oninput="onDefectFieldInput_()">' +
+      '<input type="number" inputmode="numeric" id="defectOtherQty" placeholder="0" oninput="onDefectFieldInput_()">' +
+    '</div>' +
+  '</div>';
+}
+
+// ปัญหาในรายการที่ซ่อมได้ ("Rework X"/"Scrap X") ถ้าพิมพ์ชื่อ X มาในช่องอื่นๆ นับเป็น "ซ่อมไม่ได้"
+// (Scrap X) เพราะช่องนี้เป็นยอด NG
+function resolveOtherDefectKey_(name, keys) {
+  var lower = name.toLowerCase();
+  var exact = keys.filter(function(k) { return String(k).toLowerCase() === lower; })[0];
+  if (exact) return exact;
+  var scrap = keys.filter(function(k) {
+    return String(k).indexOf(SCRAP_DEFECT_PREFIX_) === 0 && String(k).slice(SCRAP_DEFECT_PREFIX_.length).toLowerCase() === lower;
+  })[0];
+  return scrap || name;
+}
+
+// { key, qty, error } -- ไม่ใส่จำนวน = ไม่นับ (ชื่อพิมพ์ค้างไว้ได้)
+function readOtherDefect_(nameId, qtyId, keyInputSelector) {
+  var nameEl = document.getElementById(nameId);
+  var qtyEl = document.getElementById(qtyId);
+  if (!nameEl || !qtyEl) return { key: "", qty: 0, error: "" };
+  var name = String(nameEl.value || "").trim().replace(/\s+/g, " ");
+  var qty = Number(qtyEl.value || 0);
+  if (!(qty > 0)) return { key: "", qty: 0, error: "" };
+  if (!name) return { key: "", qty: qty, error: "กรุณาพิมพ์ชื่อปัญหาในช่อง อื่นๆ" };
+  if (/^(rework|scrap)\s/i.test(name)) return { key: "", qty: qty, error: "ชื่อปัญหาในช่อง อื่นๆ ห้ามขึ้นต้นด้วย Rework / Scrap" };
+  var keys = Array.prototype.map.call(document.querySelectorAll(keyInputSelector), function(input) {
+    return input.getAttribute("data-defect");
+  });
+  return { key: resolveOtherDefectKey_(name, keys), qty: qty, error: "" };
 }
 
 function getDefectBreakdownFromInputs_() {
@@ -4056,7 +4121,11 @@ function getDefectBreakdownFromInputs_() {
     sum += val;
   });
 
-  return { breakdown: breakdown, sum: sum };
+  var other = readOtherDefect_("defectOtherName", "defectOtherQty", ".defect-input");
+  if (other.key) breakdown[other.key] = (breakdown[other.key] || 0) + other.qty;
+  sum += other.qty;
+
+  return { breakdown: breakdown, sum: sum, otherError: other.error };
 }
 
 function updateDefectSumStatus_(ngValue) {
@@ -4064,6 +4133,12 @@ function updateDefectSumStatus_(ngValue) {
   if (!statusEl) return true;
 
   var result = getDefectBreakdownFromInputs_();
+
+  if (result.otherError) {
+    statusEl.textContent = result.otherError;
+    statusEl.className = "defect-sum-status bad";
+    return false;
+  }
 
   if (result.sum === ngValue) {
     statusEl.textContent = "ยอดรวม " + result.sum + " / " + ngValue + " ถูกต้อง";
@@ -4140,6 +4215,7 @@ function renderReworkDefectSectionHtml_(defects) {
   return '<div class="defect-section" id="defectSection">' +
     '<p class="defect-section-label">แยกตามผล Rework</p>' +
     rows +
+    otherDefectRowHtml_("อื่นๆ (NG)") +
     '<p class="defect-sum-status" id="defectSumStatus"></p>' +
   '</div>';
 }
@@ -4163,6 +4239,12 @@ function updateReworkSumStatus_(totalValue) {
   if (!statusEl) return true;
 
   var result = getDefectBreakdownFromInputs_();
+
+  if (result.otherError) {
+    statusEl.textContent = result.otherError;
+    statusEl.className = "defect-sum-status bad";
+    return false;
+  }
 
   if (result.sum === totalValue) {
     statusEl.textContent = "ยอดรวม " + result.sum + " / " + totalValue + " ถูกต้อง";

@@ -1509,6 +1509,7 @@ body {
 
 .edit-form-row input {
   height: 5.5vh;
+  min-width: 0;
   border: 2px solid var(--bg-card-border);
   border-radius: 8px;
   background: var(--bg-card);
@@ -1519,6 +1520,7 @@ body {
 
 .edit-form-row select {
   height: 5.5vh;
+  min-width: 0;
   border: 2px solid var(--bg-card-border);
   border-radius: 8px;
   background: var(--bg-card);
@@ -1578,8 +1580,36 @@ body {
   margin-top: 0.6vh;
 }
 
-.edit-defect-sum.ok { color: #1B8A3D; }
-.edit-defect-sum.bad { color: #D22; }
+.edit-defect-sum.ok { color: var(--accent-green); }
+.edit-defect-sum.bad { color: var(--accent-red); }
+
+.edit-other {
+  margin-top: 1.2vh;
+  padding-top: 1.2vh;
+  border-top: 1px dashed var(--bg-card-border);
+}
+
+.edit-defect-label span {
+  font-weight: 400;
+}
+
+.edit-other-fields {
+  display: grid;
+  grid-template-columns: 1fr 96px;
+  gap: 10px;
+}
+
+.edit-other-fields input {
+  height: 5.5vh;
+  min-width: 0;
+  border: 2px solid var(--bg-card-border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 0 12px;
+  color: var(--text-primary);
+  font-size: 2vh;
+  font-family: inherit;
+}
 
 .scan-overlay {
   position: fixed;
@@ -1837,7 +1867,7 @@ body {
       </button>
       <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
       <div class="credits-title">TRIGO REPORT</div>
-      <div class="credits-version">Version 3.2.0</div>
+      <div class="credits-version">Version 3.3.0</div>
       <div class="credits-divider"></div>
       <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>สร้างขึ้นเพื่อใช้สำหรับสร้างใบงานและใบลงชื่อประจำวัน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
       <div class="credits-divider"></div>
@@ -2883,7 +2913,7 @@ function showHomeChoice_() {
       '<div class="hm-footer-divider"></div>' +
       '<div class="hm-footer-brand-wrap">' +
         '<div class="footer-brand">TRIGO REPORT</div>' +
-        '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.2.0<br>&copy; 2026 TRIGO</div>' +
+        '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.3.0<br>&copy; 2026 TRIGO</div>' +
       '</div>' +
     '</footer>';
 }
@@ -4060,8 +4090,15 @@ async function handleInspectEditTap_(batch, partNumber, employeeId, isMine) {
 function renderEditDefectSectionHtml_(defects, existingBreakdown) {
   if (!defects || defects.length === 0) return "";
 
-  var rows = defects.map(function(name) {
-    var val = (existingBreakdown && existingBreakdown[name]) || "";
+  var existing = existingBreakdown || {};
+  // ปัญหา "อื่นๆ" ที่พิมพ์ชื่อไว้ตอนลงยอด (ไม่อยู่ในรายการของ Part) ต้องแก้จำนวนได้เหมือนปัญหาอื่น
+  // -- key แบบ Rework/Scrap ของปัญหาที่ซ่อมได้ไม่ดึงมา (หน้านี้แก้ยอดแบบนั้นไม่ได้อยู่แล้ว)
+  var names = defects.concat(Object.keys(existing).filter(function(k) {
+    return defects.indexOf(k) === -1 && !/^(Rework|Scrap) /.test(k);
+  }));
+
+  var rows = names.map(function(name) {
+    var val = existing[name] || "";
     return '<div class="edit-form-row"><label>' + escapeHtml(name) + '</label>' +
       '<input type="number" inputmode="numeric" class="edit-defect-input" data-defect="' + escapeHtml(name) + '" value="' + val + '" placeholder="0" oninput="updateInspectEditForm_()"></div>';
   }).join("");
@@ -4069,22 +4106,60 @@ function renderEditDefectSectionHtml_(defects, existingBreakdown) {
   return '<div class="edit-defect-section">' +
     '<p class="edit-defect-label">แยกประเภท NG</p>' +
     rows +
+    '<div class="edit-other">' +
+      '<p class="edit-defect-label">อื่นๆ <span>(พิมพ์ชื่อปัญหาเอง)</span></p>' +
+      '<div class="edit-other-fields">' +
+        '<input type="text" id="editOtherName" maxlength="30" placeholder="ชื่อปัญหา" autocomplete="off" oninput="updateInspectEditForm_()">' +
+        '<input type="number" inputmode="numeric" id="editOtherQty" placeholder="0" oninput="updateInspectEditForm_()">' +
+      '</div>' +
+    '</div>' +
     '<p class="edit-defect-sum" id="editDefectSum"></p>' +
   '</div>';
+}
+
+// ชื่อที่พิมพ์ในช่องอื่นๆ ตรงกับปัญหาที่มีอยู่แล้ว (ไม่สนตัวพิมพ์เล็กใหญ่) = รวมเข้าปัญหานั้น ปัญหาที่
+// ซ่อมได้ (Rework X) นับเป็นยอดซ่อมไม่ได้ (Scrap X) เพราะช่องนี้เป็นยอด NG -- ตรงกับฝั่ง Hub
+function resolveEditOtherKey_(name, keys) {
+  var lower = name.toLowerCase();
+  var exact = keys.filter(function(k) { return String(k).toLowerCase() === lower; })[0];
+  if (exact) return exact;
+  var fixable = keys.filter(function(k) {
+    return /^(Rework|Scrap) /.test(k) && String(k).replace(/^(Rework|Scrap) /, "").toLowerCase() === lower;
+  })[0];
+  return fixable ? "Scrap " + fixable.replace(/^(Rework|Scrap) /, "") : name;
 }
 
 function getEditDefectBreakdown_() {
   var inputs = document.querySelectorAll(".edit-defect-input");
   var breakdown = {};
   var sum = 0;
+  var keys = [];
 
   inputs.forEach(function(input) {
     var val = Number(input.value || 0);
+    keys.push(input.getAttribute("data-defect"));
     if (val > 0) breakdown[input.getAttribute("data-defect")] = val;
     sum += val;
   });
 
-  return { breakdown: breakdown, sum: sum };
+  var otherError = "";
+  var nameEl = document.getElementById("editOtherName");
+  var qtyEl = document.getElementById("editOtherQty");
+  var otherQty = qtyEl ? Number(qtyEl.value || 0) : 0;
+  if (otherQty > 0) {
+    var otherName = String(nameEl.value || "").trim().replace(/\s+/g, " ");
+    if (!otherName) {
+      otherError = "กรุณาพิมพ์ชื่อปัญหาในช่อง อื่นๆ";
+    } else if (/^(rework|scrap)\s/i.test(otherName)) {
+      otherError = "ชื่อปัญหาในช่อง อื่นๆ ห้ามขึ้นต้นด้วย Rework / Scrap";
+    } else {
+      var key = resolveEditOtherKey_(otherName, keys);
+      breakdown[key] = (breakdown[key] || 0) + otherQty;
+    }
+    sum += otherQty;
+  }
+
+  return { breakdown: breakdown, sum: sum, otherError: otherError };
 }
 
 async function showInspectEditForm_(entry) {
@@ -4123,7 +4198,11 @@ function updateInspectEditForm_() {
   var defectValid = true;
   if (sumEl) {
     var result = getEditDefectBreakdown_();
-    if (ng > 0) {
+    if (ng > 0 && result.otherError) {
+      defectValid = false;
+      sumEl.textContent = result.otherError;
+      sumEl.className = "edit-defect-sum bad";
+    } else if (ng > 0) {
       defectValid = result.sum === ng;
       sumEl.textContent = "ยอดรวม " + result.sum + " / " + ng + (defectValid ? " ถูกต้อง" : " (ต้องเท่ากับ NG)");
       sumEl.className = "edit-defect-sum " + (defectValid ? "ok" : "bad");
