@@ -1583,6 +1583,17 @@ body {
 .edit-defect-sum.ok { color: var(--accent-green); }
 .edit-defect-sum.bad { color: var(--accent-red); }
 
+.edit-form-hint {
+  width: 340px;
+  max-width: calc(100% - 32px);
+  margin: -0.8vh auto 1.6vh;
+  padding-left: 94px;
+  box-sizing: border-box;
+  font-size: 1.7vh;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
 .edit-other {
   margin-top: 1.2vh;
   padding-top: 1.2vh;
@@ -1867,7 +1878,7 @@ body {
       </button>
       <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
       <div class="credits-title">TRIGO REPORT</div>
-      <div class="credits-version">Version 3.3.0</div>
+      <div class="credits-version">Version 3.3.1</div>
       <div class="credits-divider"></div>
       <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>สร้างขึ้นเพื่อใช้สำหรับสร้างใบงานและใบลงชื่อประจำวัน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
       <div class="credits-divider"></div>
@@ -2913,7 +2924,7 @@ function showHomeChoice_() {
       '<div class="hm-footer-divider"></div>' +
       '<div class="hm-footer-brand-wrap">' +
         '<div class="footer-brand">TRIGO REPORT</div>' +
-        '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.3.0<br>&copy; 2026 TRIGO</div>' +
+        '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.3.1<br>&copy; 2026 TRIGO</div>' +
       '</div>' +
     '</footer>';
 }
@@ -3893,6 +3904,11 @@ var inspectMyEntries_ = [];
 var inspectEditEntry_ = null;
 var inspectEditTargetEmployeeId_ = "";
 var inspectEditDefects_ = [];
+// รูปแบบหน้าแก้ไขยอด ให้ตรงกับหน้า Hub ตอนลงยอด:
+// - มิชชั่น (Rework): ไม่มีช่อง OK/NG ตรงๆ ใช้ "จำนวนทั้งหมด" แล้ว Rework OK / Rework NG มาจากช่องแยกตามผล Rework
+// - มิชชั่นปกติที่ Part มีปัญหาแบบซ่อมได้ (เช่น 60): ช่อง OK/NG เหมือนเดิม + Rework OK แยกต่างหาก (ไม่อยู่ใน NG)
+var inspectEditTotalMode_ = false;
+var inspectEditReworkLayout_ = false;
 var inspectReportFileUrl_ = "";
 
 function showInspectDatePicker_() {
@@ -4078,7 +4094,7 @@ async function handleInspectEditTap_(batch, partNumber, employeeId, isMine) {
     heading: "เลือกรายการที่จะแก้ไข",
     showSearch: false,
     items: matches.map(function(e) {
-      return { title: "OK " + numberWithCommas_(e.ok) + " / NG " + numberWithCommas_(e.ng), sub: e.timestamp, value: e.timestamp };
+      return { title: inspectEntryQtyText_(inspectState_.currentMission.mission, e), sub: e.timestamp, value: e.timestamp };
     }),
     onSelect: function(item) {
       var entry = matches.find(function(e) { return e.timestamp === item.value; });
@@ -4087,27 +4103,74 @@ async function handleInspectEditTap_(batch, partNumber, employeeId, isMine) {
   });
 }
 
-function renderEditDefectSectionHtml_(defects, existingBreakdown) {
+var REWORK_DEFECT_PREFIX_ = "Rework ";
+var SCRAP_DEFECT_PREFIX_ = "Scrap ";
+
+// ชื่อมิชชั่นมี "(Rework)" -- กฎเดียวกับ isReworkMission_ (Utils.js) และ isReworkMissionName_ ฝั่ง Hub
+function isReworkMissionName_(mission) {
+  return String(mission || "").toLowerCase().indexOf("(rework)") !== -1;
+}
+
+// ช่องแยกตามผล Rework (เหมือนหน้า Hub ตอนลงยอด): มิชชั่น Rework หรือ Part ที่มีปัญหาแบบซ่อมได้ ("Rework X")
+function editUsesReworkLayout_(mission, defects) {
+  return isReworkMissionName_(mission) || (defects || []).some(function(d) {
+    return String(d).indexOf(REWORK_DEFECT_PREFIX_) === 0;
+  });
+}
+
+function reworkOkFromBreakdown_(breakdown) {
+  return Object.keys(breakdown || {}).reduce(function(total, key) {
+    return key.indexOf(REWORK_DEFECT_PREFIX_) === 0 ? total + Number(breakdown[key] || 0) : total;
+  }, 0);
+}
+
+// ข้อความยอดของ 1 รายการ -- มิชชั่น (Rework) ช่อง OK/NG ของมันคือ Rework OK / Rework NG ส่วนมิชชั่นปกติ
+// Rework OK เป็นยอดแยกจาก OK/NG
+function inspectEntryQtyText_(mission, entry) {
+  if (isReworkMissionName_(mission)) {
+    return "Rework OK " + numberWithCommas_(entry.ok) + " / Rework NG " + numberWithCommas_(entry.ng);
+  }
+  var reworkOk = reworkOkFromBreakdown_(entry.defectBreakdown);
+  return "OK " + numberWithCommas_(entry.ok) + " / NG " + numberWithCommas_(entry.ng) +
+    (reworkOk > 0 ? " / Rework OK " + numberWithCommas_(reworkOk) : "");
+}
+
+function renderEditDefectSectionHtml_(defects, existingBreakdown, reworkLayout) {
   if (!defects || defects.length === 0) return "";
 
   var existing = existingBreakdown || {};
-  // ปัญหา "อื่นๆ" ที่พิมพ์ชื่อไว้ตอนลงยอด (ไม่อยู่ในรายการของ Part) ต้องแก้จำนวนได้เหมือนปัญหาอื่น
-  // -- key แบบ Rework/Scrap ของปัญหาที่ซ่อมได้ไม่ดึงมา (หน้านี้แก้ยอดแบบนั้นไม่ได้อยู่แล้ว)
-  var names = defects.concat(Object.keys(existing).filter(function(k) {
-    return defects.indexOf(k) === -1 && !/^(Rework|Scrap) /.test(k);
-  }));
+  var fields = [];
+  defects.forEach(function(name) {
+    if (reworkLayout && name.indexOf(REWORK_DEFECT_PREFIX_) === 0) {
+      var base = name.slice(REWORK_DEFECT_PREFIX_.length);
+      fields.push({ key: REWORK_DEFECT_PREFIX_ + base, label: "Rework " + base + " OK" });
+      fields.push({ key: SCRAP_DEFECT_PREFIX_ + base, label: base + " Rework ไม่ได้" });
+    } else {
+      fields.push({ key: name, label: reworkLayout ? name + " (NG)" : name });
+    }
+  });
 
-  var rows = names.map(function(name) {
-    var val = existing[name] || "";
-    return '<div class="edit-form-row"><label>' + escapeHtml(name) + '</label>' +
-      '<input type="number" inputmode="numeric" class="edit-defect-input" data-defect="' + escapeHtml(name) + '" value="' + val + '" placeholder="0" oninput="updateInspectEditForm_()"></div>';
+  // key ที่บันทึกไว้แต่ไม่อยู่ในรายการ (ปัญหา "อื่นๆ" ที่พิมพ์เอง หรือปัญหาที่ถูกเอาออกจาก Part Master
+  // ไปแล้ว) ต้องขึ้นให้แก้ได้ด้วย -- ไม่งั้นกดบันทึกแล้วข้อมูลส่วนนั้นหายไปเงียบๆ
+  var known = {};
+  fields.forEach(function(f) { known[f.key] = true; });
+  Object.keys(existing).forEach(function(key) {
+    if (known[key]) return;
+    known[key] = true;
+    fields.push({ key: key, label: (reworkLayout && !/^(Rework|Scrap) /.test(key)) ? key + " (NG)" : key });
+  });
+
+  var rows = fields.map(function(f) {
+    var val = existing[f.key] || "";
+    return '<div class="edit-form-row"><label>' + escapeHtml(f.label) + '</label>' +
+      '<input type="number" inputmode="numeric" class="edit-defect-input" data-defect="' + escapeHtml(f.key) + '" value="' + val + '" placeholder="0" oninput="updateInspectEditForm_()"></div>';
   }).join("");
 
   return '<div class="edit-defect-section">' +
-    '<p class="edit-defect-label">แยกประเภท NG</p>' +
+    '<p class="edit-defect-label">' + (reworkLayout ? "แยกตามผล Rework" : "แยกประเภท NG") + '</p>' +
     rows +
     '<div class="edit-other">' +
-      '<p class="edit-defect-label">อื่นๆ <span>(พิมพ์ชื่อปัญหาเอง)</span></p>' +
+      '<p class="edit-defect-label">' + (reworkLayout ? "อื่นๆ (NG)" : "อื่นๆ") + ' <span>(พิมพ์ชื่อปัญหาเอง)</span></p>' +
       '<div class="edit-other-fields">' +
         '<input type="text" id="editOtherName" maxlength="30" placeholder="ชื่อปัญหา" autocomplete="off" oninput="updateInspectEditForm_()">' +
         '<input type="number" inputmode="numeric" id="editOtherQty" placeholder="0" oninput="updateInspectEditForm_()">' +
@@ -4173,15 +4236,24 @@ async function showInspectEditForm_(entry) {
     inspectEditDefects_ = [];
   }
 
+  var mission = inspectState_.currentMission.mission;
+  inspectEditTotalMode_ = isReworkMissionName_(mission) && inspectEditDefects_.length > 0;
+  inspectEditReworkLayout_ = !inspectEditTotalMode_ && editUsesReworkLayout_(mission, inspectEditDefects_);
+
+  var qtyRowsHtml = inspectEditTotalMode_
+    ? '<div class="edit-form-row"><label>จำนวนทั้งหมด</label><input id="editEntryTotal" type="number" inputmode="numeric" value="' + (Number(entry.ok || 0) + Number(entry.ng || 0)) + '" oninput="updateInspectEditForm_()"></div>' +
+      '<p class="edit-form-hint" id="editEntryOkNgHint"></p>'
+    : '<div class="edit-form-row"><label>OK</label><input id="editEntryOk" type="number" inputmode="numeric" value="' + entry.ok + '" oninput="updateInspectEditForm_()"></div>' +
+      '<div class="edit-form-row"><label>NG</label><input id="editEntryNg" type="number" inputmode="numeric" value="' + entry.ng + '" oninput="updateInspectEditForm_()"></div>';
+
   document.getElementById("content").innerHTML =
     '<div class="picker-page">' +
-      '<p class="picker-context">Mission : ' + escapeHtml(inspectState_.currentMission.mission) + '</p>' +
+      '<p class="picker-context">Mission : ' + escapeHtml(mission) + '</p>' +
       '<p class="picker-context">Part No. : ' + escapeHtml(entry.partNumber) + ' &middot; Batch ' + escapeHtml(entry.batch) + '</p>' +
-      '<div class="edit-form-row"><label>OK</label><input id="editEntryOk" type="number" inputmode="numeric" value="' + entry.ok + '" oninput="updateInspectEditForm_()"></div>' +
-      '<div class="edit-form-row"><label>NG</label><input id="editEntryNg" type="number" inputmode="numeric" value="' + entry.ng + '" oninput="updateInspectEditForm_()"></div>' +
+      qtyRowsHtml +
       '<div class="edit-form-row"><label>เริ่มงาน</label><input id="editEntryStart" type="time" value="' + (padTimeStr_(entry.startTime) || "08:00") + '"></div>' +
       '<div class="edit-form-row"><label>เลิกงาน</label><input id="editEntryEnd" type="time" value="' + (padTimeStr_(entry.endTime) || "17:00") + '"></div>' +
-      '<div id="editEntryDefectWrap">' + renderEditDefectSectionHtml_(inspectEditDefects_, entry.defectBreakdown) + '</div>' +
+      '<div id="editEntryDefectWrap">' + renderEditDefectSectionHtml_(inspectEditDefects_, entry.defectBreakdown, inspectEditTotalMode_ || inspectEditReworkLayout_) + '</div>' +
       '<button id="editEntrySaveBtn" class="static-primary-btn" type="button" onclick="saveInspectEdit_()">' + checkCircleWhiteIcon() + '<span>บันทึกการแก้ไข</span></button>' +
       '<button id="editEntryRemoveBtn" class="static-danger-btn" type="button" style="margin-top:1.4vh;" onclick="removeInspectEntry_()">' + trashIcon() + '<span>ลบออกจากมิชชั่น</span></button>' +
     '</div>';
@@ -4189,30 +4261,71 @@ async function showInspectEditForm_(entry) {
   updateInspectEditForm_();
 }
 
+// ยอดที่จะบันทึก (ok/ng) + ผลรวมช่องแยก ตามรูปแบบของรายการ -- มิชชั่น (Rework): ok = Rework OK,
+// ng = Rework NG มาจากช่องแยกทั้งหมด / มิชชั่นปกติ: ok/ng จากช่องที่กรอก ส่วน Rework OK แยกต่างหาก
+function readInspectEditQty_() {
+  var result = getEditDefectBreakdown_();
+  var reworkOk = reworkOkFromBreakdown_(result.breakdown);
+  var ngSum = result.sum - reworkOk;
+
+  if (inspectEditTotalMode_) {
+    var totalEl = document.getElementById("editEntryTotal");
+    return { result: result, ok: reworkOk, ng: ngSum, reworkOk: reworkOk, ngSum: ngSum, total: Number((totalEl && totalEl.value) || 0) };
+  }
+
+  return {
+    result: result,
+    ok: Number(document.getElementById("editEntryOk").value || 0),
+    ng: Number(document.getElementById("editEntryNg").value || 0),
+    reworkOk: reworkOk,
+    ngSum: ngSum,
+    total: 0
+  };
+}
+
 function updateInspectEditForm_() {
-  var ok = Number(document.getElementById("editEntryOk").value || 0);
-  var ng = Number(document.getElementById("editEntryNg").value || 0);
   var saveBtn = document.getElementById("editEntrySaveBtn");
   var sumEl = document.getElementById("editDefectSum");
-
+  var q = readInspectEditQty_();
   var defectValid = true;
-  if (sumEl) {
-    var result = getEditDefectBreakdown_();
-    if (ng > 0 && result.otherError) {
+
+  function showSum(ok, text) {
+    sumEl.textContent = text;
+    sumEl.className = "edit-defect-sum " + (ok ? "ok" : "bad");
+  }
+
+  if (inspectEditTotalMode_) {
+    var hint = document.getElementById("editEntryOkNgHint");
+    if (hint) hint.textContent = "Rework OK " + q.ok + " · Rework NG " + q.ng;
+    if (sumEl) {
+      if (q.result.otherError) {
+        defectValid = false;
+        showSum(false, q.result.otherError);
+      } else if (q.total > 0 || q.result.sum > 0) {
+        defectValid = q.result.sum === q.total;
+        showSum(defectValid, "ยอดรวม " + q.result.sum + " / " + q.total + (defectValid ? " ถูกต้อง" : " (ต้องเท่ากับจำนวนทั้งหมด)"));
+      } else {
+        sumEl.textContent = "";
+      }
+    }
+  } else if (sumEl) {
+    // Part ที่มีปัญหาแบบซ่อมได้: เช็คตลอด (Rework ไม่ได้ต้องเข้า NG แม้ NG เป็น 0) ส่วน Rework OK ไม่นับใน NG
+    var checkNg = inspectEditReworkLayout_ || q.ng > 0;
+    var reworkNote = q.reworkOk > 0 ? " · Rework OK " + q.reworkOk : "";
+    if (checkNg && q.result.otherError) {
       defectValid = false;
-      sumEl.textContent = result.otherError;
-      sumEl.className = "edit-defect-sum bad";
-    } else if (ng > 0) {
-      defectValid = result.sum === ng;
-      sumEl.textContent = "ยอดรวม " + result.sum + " / " + ng + (defectValid ? " ถูกต้อง" : " (ต้องเท่ากับ NG)");
-      sumEl.className = "edit-defect-sum " + (defectValid ? "ok" : "bad");
+      showSum(false, q.result.otherError);
+    } else if (checkNg) {
+      defectValid = q.ngSum === q.ng;
+      showSum(defectValid, (inspectEditReworkLayout_ ? "ยอดรวม NG " : "ยอดรวม ") + q.ngSum + " / " + q.ng +
+        (defectValid ? " ถูกต้อง" : " (ต้องเท่ากับ NG)") + reworkNote);
     } else {
       sumEl.textContent = "";
     }
   }
 
   // ยอม 0/0 ได้ (คนที่เพิ่มแบบ "ไม่เพิ่มยอด" ต้องแก้เวลาได้แม้ยอดเป็น 0)
-  var valid = ok >= 0 && ng >= 0 && defectValid;
+  var valid = q.ok >= 0 && q.ng >= 0 && defectValid;
   if (saveBtn) saveBtn.disabled = !valid;
 }
 
@@ -4223,11 +4336,13 @@ function saveInspectEdit_() {
     saveBtn.disabled = true;
   }
 
-  var ok = Number(document.getElementById("editEntryOk").value || 0);
-  var ng = Number(document.getElementById("editEntryNg").value || 0);
+  var q = readInspectEditQty_();
+  var ok = q.ok;
+  var ng = q.ng;
   var startTime = document.getElementById("editEntryStart").value || "";
   var endTime = document.getElementById("editEntryEnd").value || "";
-  var defectBreakdown = ng > 0 ? getEditDefectBreakdown_().breakdown : {};
+  // มิชชั่น (Rework) / Part ที่ซ่อมได้ เก็บช่องแยกทั้งหมดเสมอ (Rework OK อยู่ในนี้ แม้ NG เป็น 0)
+  var defectBreakdown = (inspectEditTotalMode_ || inspectEditReworkLayout_ || ng > 0) ? q.result.breakdown : {};
 
   api("editDailyWorkEntry", {
     payload: {
@@ -4269,7 +4384,7 @@ function removeInspectEntry_() {
     ? inspectEditEntry_.employeeName
     : "รายการนี้";
 
-  if (!confirm("ลบ " + who + " ออกจากมิชชั่นนี้?\nยอด OK " + inspectEditEntry_.ok + " / NG " + inspectEditEntry_.ng + " จะถูกคืนกลับสต็อก และกู้คืนไม่ได้")) {
+  if (!confirm("ลบ " + who + " ออกจากมิชชั่นนี้?\nยอด " + inspectEntryQtyText_(inspectState_.currentMission.mission, inspectEditEntry_) + " จะถูกคืนกลับสต็อก และกู้คืนไม่ได้")) {
     return;
   }
 

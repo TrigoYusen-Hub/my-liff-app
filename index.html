@@ -2183,7 +2183,7 @@ footer {
       <div class="footer-divider"></div>
       <div class="footer-brand-wrap">
         <div class="footer-brand">TRIGO YUSEN HUB</div>
-        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.3.0<br>&copy; 2026 TRIGO</div>
+        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.3.1<br>&copy; 2026 TRIGO</div>
       </div>
     </footer>
 </main>
@@ -2200,7 +2200,7 @@ footer {
     </button>
     <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
     <div class="credits-title">TRIGO YUSEN HUB</div>
-    <div class="credits-version">Version 3.3.0</div>
+    <div class="credits-version">Version 3.3.1</div>
     <div class="credits-divider"></div>
     <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>เพื่อใช้ในการบันทึกข้อมูลงาน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
     <div class="credits-divider"></div>
@@ -4125,9 +4125,23 @@ function getDefectBreakdownFromInputs_() {
   if (other.key) breakdown[other.key] = (breakdown[other.key] || 0) + other.qty;
   sum += other.qty;
 
-  return { breakdown: breakdown, sum: sum, otherError: other.error };
+  var reworkSum = reworkOkFromBreakdown_(breakdown);
+  return { breakdown: breakdown, sum: sum, ngSum: sum - reworkSum, reworkSum: reworkSum, otherError: other.error };
 }
 
+function reworkOkFromBreakdown_(breakdown) {
+  return Object.keys(breakdown || {}).reduce(function(total, key) {
+    return key.indexOf(REWORK_DEFECT_PREFIX_) === 0 ? total + Number(breakdown[key] || 0) : total;
+  }, 0);
+}
+
+// Rework OK ที่แยกจาก OK/NG -- มิชชั่นปกติเท่านั้น (มิชชั่น Rework ช่อง OK ของมันคือ Rework OK อยู่แล้ว)
+function separateReworkOk_(mission, breakdown) {
+  return isReworkMissionName_(mission) ? 0 : reworkOkFromBreakdown_(breakdown);
+}
+
+// มิชชั่นปกติ: NG = ปัญหาที่ไม่ใช่ Rework OK (X Rework ไม่ได้ / ปัญหาที่ซ่อมไม่ได้ / อื่นๆ) เท่านั้น
+// Rework OK เป็นยอดแยก ไม่ใช่งานเสีย ไม่ต้องรวมใน NG
 function updateDefectSumStatus_(ngValue) {
   var statusEl = document.getElementById("defectSumStatus");
   if (!statusEl) return true;
@@ -4140,13 +4154,17 @@ function updateDefectSumStatus_(ngValue) {
     return false;
   }
 
-  if (result.sum === ngValue) {
-    statusEl.textContent = "ยอดรวม " + result.sum + " / " + ngValue + " ถูกต้อง";
+  var hasReworkInputs = !!document.querySelector('.defect-input[data-defect^="' + REWORK_DEFECT_PREFIX_ + '"]');
+  var label = hasReworkInputs ? "ยอดรวม NG " : "ยอดรวม ";
+  var reworkNote = result.reworkSum > 0 ? " · Rework OK " + result.reworkSum : "";
+
+  if (result.ngSum === ngValue) {
+    statusEl.textContent = label + result.ngSum + " / " + ngValue + " ถูกต้อง" + reworkNote;
     statusEl.className = "defect-sum-status ok";
     return true;
   }
 
-  statusEl.textContent = "ยอดรวม " + result.sum + " / " + ngValue + " (ต้องเท่ากับ NG)";
+  statusEl.textContent = label + result.ngSum + " / " + ngValue + " (ต้องเท่ากับ NG)" + reworkNote;
   statusEl.className = "defect-sum-status bad";
   return false;
 }
@@ -4624,6 +4642,7 @@ function updateDailyWorkManualForm() {
   var hasDefects = dwManualDefects_ && dwManualDefects_.length > 0;
   var isRework = isReworkMissionName_(mission);
   var ok, ng, defectValid = true;
+  var reworkOk = 0;
 
   if (isRework) {
     // OK/NG มาจากผลรวมช่องแยกตาม defect เสมอ (ไม่มีช่อง OK/NG ตรง ๆ ให้กรอก)
@@ -4636,10 +4655,14 @@ function updateDailyWorkManualForm() {
   } else {
     ok = Number(document.getElementById("dwManualOk").value || 0);
     ng = Number(document.getElementById("dwManualNg").value || 0);
+    // Part ที่มีปัญหาแบบซ่อมได้ (เช่นมิชชั่น 60): ช่องแยกตามผล Rework ขึ้นตลอด เพราะอาจมีแต่
+    // Rework OK โดยไม่มี NG เลย (Rework OK ไม่ได้อยู่ใน NG)
+    var fixable = hasFixableDefects_(dwManualDefects_);
     if (wrap) {
-      if (hasDefects && ng > 0) {
+      if (hasDefects && (ng > 0 || fixable)) {
         wrap.style.display = "block";
         defectValid = updateDefectSumStatus_(ng);
+        if (fixable) reworkOk = getDefectBreakdownFromInputs_().reworkSum;
       } else {
         wrap.style.display = "none";
         defectValid = true;
@@ -4651,7 +4674,7 @@ function updateDailyWorkManualForm() {
   // (ดู placeholder ในช่องกรอก) กันไม่ให้ข้ามไปเฉย ๆ โดยไม่ได้ตั้งใจ
   var lotValid = document.getElementById("dwManualLot").value.trim().length > 0;
 
-  var valid = mission && partNumber && batchComboIsValid_("dw") && ok >= 0 && ng >= 0 && (ok + ng) > 0 && defectValid && lotValid;
+  var valid = mission && partNumber && batchComboIsValid_("dw") && ok >= 0 && ng >= 0 && (ok + ng + reworkOk) > 0 && defectValid && lotValid;
 
   if (valid) {
     nextBtn.disabled = false;
@@ -4777,6 +4800,9 @@ async function showDailyWorkQtyEntry() {
       </div>
     </div>
   `;
+
+  // Part ที่มีปัญหาแบบซ่อมได้ ช่องแยกตามผล Rework ต้องขึ้นตั้งแต่แรก (ไม่ต้องรอกรอก NG)
+  updateDailyWorkQtyForm_();
 }
 
 // ปกติหน้ายืนยัน (showDailyWorkConfirm) อ่าน OK/NG จาก dailyWorkOkInput/
@@ -4806,6 +4832,10 @@ function updateDailyWorkQtyForm_() {
   var wrap = document.getElementById("defectSectionWrap");
   var hasDefects = dailyWorkState.defects && dailyWorkState.defects.length > 0;
   var defectValid = true;
+  // Part ที่มีปัญหาแบบซ่อมได้ (เช่นมิชชั่น 60): ช่องแยกตามผล Rework ขึ้นตลอด เพราะอาจมีแต่
+  // Rework OK โดยไม่มี NG เลย (Rework OK ไม่ได้อยู่ใน NG)
+  var fixable = !isRework && hasFixableDefects_(dailyWorkState.defects);
+  var reworkOk = 0;
 
   if (wrap) {
     if (isRework && hasDefects) {
@@ -4815,9 +4845,10 @@ function updateDailyWorkQtyForm_() {
       var totalInput = document.getElementById("dailyWorkTotalInput");
       var total = Number((totalInput && totalInput.value) || 0);
       defectValid = total > 0 && updateReworkSumStatus_(total);
-    } else if (hasDefects && ng > 0) {
+    } else if (hasDefects && (ng > 0 || fixable)) {
       wrap.style.display = "block";
       defectValid = updateDefectSumStatus_(ng);
+      if (fixable) reworkOk = getDefectBreakdownFromInputs_().reworkSum;
     } else {
       wrap.style.display = "none";
       defectValid = true;
@@ -4825,14 +4856,14 @@ function updateDailyWorkQtyForm_() {
   }
 
   // Rework ไม่มีเพดาน "ยอดคงเหลือ" เหมือน Recheck (ดู logDailyWork_ ฝั่ง
-  // backend -- ไม่มีการตั้งเป้าล่วงหน้า ลงกี่ครั้งก็ได้)
-  var withinRemaining = dailyWorkState.isRecheck || isRework || (ok + ng <= dailyWorkState.remaining);
+  // backend -- ไม่มีการตั้งเป้าล่วงหน้า ลงกี่ครั้งก็ได้) -- Rework OK ก็หักยอดคงเหลือเหมือน OK/NG
+  var withinRemaining = dailyWorkState.isRecheck || isRework || (ok + ng + reworkOk <= dailyWorkState.remaining);
 
   // Lot No. บังคับกรอกทุกงาน (2026-09-07) -- ถ้าไม่ทราบ Lot ให้พิมพ์ N/A เอง
   var lotInput = document.getElementById("dailyWorkLotInput");
   var lotValid = !!(lotInput && lotInput.value.trim().length > 0);
 
-  var valid = ok >= 0 && ng >= 0 && ok + ng > 0 && withinRemaining && defectValid && lotValid;
+  var valid = ok >= 0 && ng >= 0 && ok + ng + reworkOk > 0 && withinRemaining && defectValid && lotValid;
 
   if (valid) {
     btn.disabled = false;
@@ -4882,8 +4913,11 @@ function showDailyWorkConfirm() {
 
   var isReworkConfirm = isReworkMissionName_(dailyWorkState.mission);
   var defectBreakdown = dailyWorkState.defectBreakdown || {};
+  var hasReworkKeys = Object.keys(defectBreakdown).some(function(k) {
+    return k.indexOf(REWORK_DEFECT_PREFIX_) === 0 || k.indexOf(SCRAP_DEFECT_PREFIX_) === 0;
+  });
   var defectSummaryHtml = Object.keys(defectBreakdown).length > 0
-    ? '<div class="confirm-qty-row"><span>' + (isReworkConfirm ? "แยกตามผล Rework" : "แยกประเภท NG") + '</span><span>' +
+    ? '<div class="confirm-qty-row"><span>' + ((isReworkConfirm || hasReworkKeys) ? "แยกตามผล Rework" : "แยกประเภท NG") + '</span><span>' +
         Object.keys(defectBreakdown).map(function(k) { return escapeHtml(k) + " " + defectBreakdown[k]; }).join(", ") +
       '</span></div>'
     : "";
@@ -4894,7 +4928,13 @@ function showDailyWorkConfirm() {
       '</span></div>'
     : "";
 
-  var remainingRowHtml = (dailyWorkState.isRecheck || isReworkConfirm) ? "" : remainingWorkRowHtml_(dailyWorkState.remaining - ok - ng);
+  // มิชชั่นปกติ: Rework OK เป็นยอดแยกจาก OK/NG (ไม่ใช่งานเสีย) แต่หักยอดคงเหลือที่ต้องทำเหมือนกัน
+  var reworkOkConfirm = separateReworkOk_(dailyWorkState.mission, defectBreakdown);
+  var reworkOkRowHtml = reworkOkConfirm > 0
+    ? '<div class="confirm-qty-row"><span>Rework OK</span><span>' + reworkOkConfirm + '</span></div>'
+    : "";
+
+  var remainingRowHtml = (dailyWorkState.isRecheck || isReworkConfirm) ? "" : remainingWorkRowHtml_(dailyWorkState.remaining - ok - ng - reworkOkConfirm);
 
   document.getElementById("receiveContent").innerHTML = `
     <div class="confirm-view">
@@ -4937,6 +4977,7 @@ function showDailyWorkConfirm() {
           <span>${ngLabelText_(dailyWorkState.mission)}</span>
           <span>${ng}</span>
         </div>
+        ${reworkOkRowHtml}
         ${defectSummaryHtml}
         ${timeSummaryHtml}
         ${remainingRowHtml}
@@ -4975,6 +5016,7 @@ async function refreshPrintQrPreview_() {
         partNumber: dailyWorkState.partNumber,
         ok: dailyWorkState.ok,
         ng: dailyWorkState.ng,
+        reworkOk: separateReworkOk_(dailyWorkState.mission, dailyWorkState.defectBreakdown),
         lineUserId: currentLineUserId
       }
     });
@@ -5085,6 +5127,7 @@ function showDailyWorkSuccess_(data) {
           <span>${ngLabelText_(data.mission)}</span>
           <span>${data.ngEntered}</span>
         </div>
+        ${data.reworkOkEntered > 0 ? '<div class="confirm-qty-row"><span>Rework OK</span><span>' + data.reworkOkEntered + '</span></div>' : ""}
         ${remainingWorkRowHtml_(data.remainingAfter)}
       </section>
 
