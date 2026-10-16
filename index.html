@@ -2183,7 +2183,7 @@ footer {
       <div class="footer-divider"></div>
       <div class="footer-brand-wrap">
         <div class="footer-brand">TRIGO YUSEN HUB</div>
-        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.4.0<br>&copy; 2026 TRIGO</div>
+        <div class="footer-meta" onclick="handleCreditTap_()">Version 3.4.1<br>&copy; 2026 TRIGO</div>
       </div>
     </footer>
 </main>
@@ -2200,7 +2200,7 @@ footer {
     </button>
     <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
     <div class="credits-title">TRIGO YUSEN HUB</div>
-    <div class="credits-version">Version 3.4.0</div>
+    <div class="credits-version">Version 3.4.1</div>
     <div class="credits-divider"></div>
     <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>เพื่อใช้ในการบันทึกข้อมูลงาน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
     <div class="credits-divider"></div>
@@ -2230,7 +2230,7 @@ footer {
 </template>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script async src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 
 <script>
 var GAS_API = "https://script.google.com/macros/s/AKfycbxeASt8OLOAIj9GIuJUGUGS6iBeELosvSfsrm0oSGN7GfOeEyb8NVD2_2z7XMralNZdlA/exec";
@@ -2303,11 +2303,44 @@ function hideCreditsPopup_() {
 // นับคำขอที่ยังค้าง -- ยิงหลายตัวพร้อมกัน ตัวหมุนต้องอยู่จนตัวสุดท้ายเสร็จ (กันกดปุ่มระหว่างโหลด)
 var apiInFlight_ = 0;
 
-async function api(action, extra) {
-  var body = Object.assign({ action: action }, extra || {});
+// คำตอบของการอ่านข้อมูลล่าสุด (จำไว้ 5 นาที) -- กดย้อนกลับมาหน้าที่เพิ่งเห็น หน้านั้นขอข้อมูลเดิมซ้ำ ใช้ค่านี้แสดงทันที
+// ไม่ต้องรอเซิร์ฟเวอร์อีก 2-3 วิ ใช้เฉพาะคำขอที่เกิดตอนวาดหน้าจากการกดย้อนกลับ (2 วิแรก) กดเข้าหน้าใหม่ยังโหลดสดเสมอ
+// บันทึกอะไรก็ตาม (action ที่ไม่อยู่ในรายการ) ล้างทิ้งทั้งหมด หน้าที่ย้อนกลับไปหลังบันทึกจะโหลดใหม่
+var API_READ_ACTIONS_ = {
+  getPartOptions: 1, getBatchOptions: 1, getPartDefects: 1, getUnitsPerBox: 1, checkStock: 1,
+  previewPrintQrBoxCount: 1, getChangelog: 1
+};
+// อ่านอย่างเดียวแต่ไม่จำ (สแกน/เปิดแอพ) -- ไม่ล้างค่าที่จำไว้
+var API_NEUTRAL_ACTIONS_ = { getInitialData: 1, scanReceive: 1, scanLookup: 1, scanLookupForDailyWork: 1 };
+var API_BACK_WINDOW_MS_ = 2000;
+var API_CACHE_TTL_MS_ = 5 * 60 * 1000;
+var apiReadCache_ = {};
+var navBackAt_ = 0;
 
-  apiInFlight_++;
-  showLoadingOverlay_();
+function apiCacheGet_(key, maxAgeMs) {
+  var hit = apiReadCache_[key];
+  return hit && Date.now() - hit.at < maxAgeMs ? JSON.parse(hit.json) : null;
+}
+
+// opts.silent = ไม่ขึ้นตัวหมุนบังจอ (โหลดเบื้องหลัง), opts.maxAgeMs = ใช้ค่าที่จำไว้ได้แม้กดเข้าหน้าใหม่ ถ้ายังไม่เก่าเกินนี้
+async function api(action, extra, opts) {
+  opts = opts || {};
+  var body = Object.assign({ action: action }, extra || {});
+  var cacheKey = API_READ_ACTIONS_[action] ? JSON.stringify(body) : "";
+
+  if (cacheKey) {
+    var cached = opts.maxAgeMs ? apiCacheGet_(cacheKey, opts.maxAgeMs) : null;
+    if (!cached && Date.now() - navBackAt_ < API_BACK_WINDOW_MS_) cached = apiCacheGet_(cacheKey, API_CACHE_TTL_MS_);
+    if (cached) return cached;
+  } else if (!API_NEUTRAL_ACTIONS_[action]) {
+    apiReadCache_ = {};
+  }
+
+  var silent = !!opts.silent;
+  if (!silent) {
+    apiInFlight_++;
+    showLoadingOverlay_();
+  }
 
   try {
     var res = await fetch(GAS_API, {
@@ -2316,11 +2349,39 @@ async function api(action, extra) {
       body: JSON.stringify(body)
     });
 
-    return await res.json();
+    var data = await res.json();
+    if (cacheKey && data && data.ok !== false) {
+      apiReadCache_[cacheKey] = { at: Date.now(), json: JSON.stringify(data) };
+    }
+    return data;
   } finally {
-    apiInFlight_ = Math.max(0, apiInFlight_ - 1);
-    if (apiInFlight_ === 0) hideLoadingOverlay_();
+    if (!silent) {
+      apiInFlight_ = Math.max(0, apiInFlight_ - 1);
+      if (apiInFlight_ === 0) hideLoadingOverlay_();
+    }
   }
+}
+
+// ข้อมูลผู้ใช้ตอนเปิดแอพครั้งก่อน (แยกตาม LINE) -- เปิดแอพครั้งถัดไปแสดงหน้าแรกได้ทันที แล้วค่อยเช็คสิทธิ์สดเบื้องหลัง
+// (คำขอเปิดแอพใช้เวลา 4-10 วิ) ถ้าเช็คแล้วไม่มีสิทธิ์แล้ว จะเปิดแอพใหม่แล้วเจอหน้าไม่ได้รับอนุญาตเหมือนเดิม
+var INIT_CACHE_KEY_ = "trigo_init_Hub";
+var lastInitData_ = null;
+
+function readCachedInit_(lineUserId) {
+  try {
+    var c = JSON.parse(localStorage.getItem(INIT_CACHE_KEY_) || "null");
+    return c && c.lineUserId === lineUserId && c.data && c.data.employee && c.data.employee.employeeId ? c.data : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeCachedInit_(lineUserId, data) {
+  try { localStorage.setItem(INIT_CACHE_KEY_, JSON.stringify({ lineUserId: lineUserId, savedAt: Date.now(), data: data })); } catch (e) {}
+}
+
+function clearCachedInit_() {
+  try { localStorage.removeItem(INIT_CACHE_KEY_); } catch (e) {}
 }
 
 var PENDING_REPORT_SYNC_KEY_ = "trigo_pending_report_sync";
@@ -2455,40 +2516,73 @@ function applyUserTypeBadge_(type) {
   }
 }
 
+// เติมชื่อ/ประเภท/รหัสพนักงานลงแถบผู้ใช้หน้าแรก -- ใช้ซ้ำได้ทุกครั้งที่กลับหน้าแรก ไม่ต้องถามเซิร์ฟเวอร์ใหม่
+function applyHubInit_(data) {
+  var userName = document.getElementById("homeUserName");
+  var userSub = document.getElementById("homeUserSub");
+
+  if (data && data.version) {
+    window.currentAppVersion = data.version;
+    updateNotiBadge_();
+  }
+
+  if (data && data.employee) {
+    currentEmployeeDisplayName = data.employee.displayName || data.employee.name || "Unknown";
+    if (userName) userName.textContent = data.employee.name || "Unknown";
+    applyUserTypeBadge_(data.employee.type);
+  }
+
+  if (data && data.employee && data.employee.employeeId) {
+    if (userSub) userSub.textContent = data.employee.employeeId;
+
+    var spinner = document.getElementById("userSpinner");
+    var statusDot = document.getElementById("statusDot");
+    var statusText = document.getElementById("statusText");
+
+    if (spinner) spinner.style.display = "none";
+    if (statusDot) statusDot.style.display = "block";
+    if (statusText) statusText.style.display = "inline";
+  }
+}
+
 function loadInitialData() {
-  api("getInitialData", { lineUserId: currentLineUserId, lineDisplayName: currentLineDisplayName, appName: "Hub" })
+  var cached = currentLineUserId ? readCachedInit_(currentLineUserId) : null;
+
+  if (cached) {
+    lastInitData_ = cached;
+    applyHubInit_(cached);
+    hideLoadingOverlay_();
+    flushPendingReportSyncs_();
+  }
+
+  api("getInitialData", { lineUserId: currentLineUserId, lineDisplayName: currentLineDisplayName, appName: "Hub" }, { silent: !!cached })
     .then(function(data) {
-      var userName = document.getElementById("homeUserName");
-      var userSub = document.getElementById("homeUserSub");
-
-      if (data && data.version) {
-        window.currentAppVersion = data.version;
-        updateNotiBadge_();
-      }
-
-      if (userName && data && data.employee) {
-        userName.textContent = data.employee.name || "Unknown";
-        currentEmployeeDisplayName = data.employee.displayName || data.employee.name || "Unknown";
-        applyUserTypeBadge_(data.employee.type);
-      }
-
       if (data && data.employee && !data.employee.employeeId) {
+        clearCachedInit_();
+        lastInitData_ = null;
+        // เปิดจากข้อมูลที่จำไว้แต่ตอนนี้ไม่มีสิทธิ์แล้ว -- เปิดแอพใหม่ให้เจอหน้าไม่ได้รับอนุญาตเหมือนเปิดครั้งแรก
+        if (cached) {
+          window.location.reload();
+          return;
+        }
+        applyHubInit_(data);
         showUnauthorizedView();
-      } else if (data && data.employee && data.employee.employeeId) {
-        if (userSub) userSub.textContent = data.employee.employeeId;
-        flushPendingReportSyncs_();
-
-        var spinner = document.getElementById("userSpinner");
-        var statusDot = document.getElementById("statusDot");
-        var statusText = document.getElementById("statusText");
-
-        if (spinner) spinner.style.display = "none";
-        if (statusDot) statusDot.style.display = "block";
-        if (statusText) statusText.style.display = "inline";
+        return;
       }
+
+      if (data && data.employee && data.employee.employeeId) {
+        lastInitData_ = data;
+        if (currentLineUserId) writeCachedInit_(currentLineUserId, data);
+        applyHubInit_(data);
+        if (!cached) flushPendingReportSyncs_();
+        return;
+      }
+
+      if (!cached) applyHubInit_(data);
     })
     .catch(function(err) {
       console.log(err);
+      if (cached) return;
       var userName = document.getElementById("homeUserName");
       var userSub = document.getElementById("homeUserSub");
       var spinner = document.getElementById("userSpinner");
@@ -2633,7 +2727,7 @@ async function showChangelogView_() {
   document.getElementById("receiveContent").innerHTML = '<div class="cl-page"><p class="picker-context">กำลังโหลด...</p></div>';
   var res;
   try {
-    res = await api("getChangelog", { app: "Hub" });
+    res = await api("getChangelog", { app: "Hub" }, { maxAgeMs: 10 * 60 * 1000 });
   } catch (e) {
     res = { ok: false };
   }
@@ -2675,6 +2769,7 @@ var atHome_ = true;
 function goto_(fn) {
   navStack_.push(fn);
   atHome_ = false;
+  navBackAt_ = 0;
   history.pushState({}, "", "");
   fn();
 }
@@ -2720,6 +2815,8 @@ window.addEventListener("popstate", function() {
     goHome();
     return;
   }
+  // กดย้อนกลับ: หน้าที่วาดซ้ำใช้ข้อมูลที่เพิ่งโหลดไว้ได้ (ดู api)
+  navBackAt_ = Date.now();
   navStack_.pop();
   navStack_[navStack_.length - 1]();
 });
@@ -2738,7 +2835,12 @@ function goHome() {
 
   if (app && homeHtmlCache) {
     app.innerHTML = homeHtmlCache;
-    loadInitialData();
+    // รู้จักผู้ใช้แล้วตั้งแต่เปิดแอพ เติมจากที่จำไว้ได้เลย -- เดิมโหลดใหม่ทุกครั้งที่กลับหน้าแรก (รอ 4 วิ + เขียน Log เปิดแอพซ้ำ)
+    if (lastInitData_) {
+      applyHubInit_(lastInitData_);
+    } else {
+      loadInitialData();
+    }
     return;
   }
 
@@ -2901,6 +3003,8 @@ function cropScanCenter_(video, canvas, digitalZoom, maxSide) {
 // แปลงเป็นขาวดำเอง -- HTMLCanvasElementLuminanceSource ของ ZXing รุ่นนี้กลับสีภาพทุกครั้งเว้นครั้ง
 // (เฟรมครึ่งหนึ่งเสียไปกับภาพกลับสี) ที่นี่อ่านแบบปกติทุกเฟรม ลองแบบกลับสีแค่ทุกเฟรมที่ 4 เผื่อ Tag พื้นดำ
 function zxDecodeScanCanvas_(canvas, frameNo) {
+  // ตัวอ่าน ZXing โหลดแบบไม่บล็อกการเปิดแอพ -- ยังโหลดไม่เสร็จก็ข้ามเฟรมนี้ไปก่อน
+  if (typeof ZXing === "undefined") return null;
   if (!scanZxReader_) {
     scanZxReader_ = new ZXing.MultiFormatReader();
     var hints = new Map();
@@ -3819,7 +3923,9 @@ async function showWithdrawBatchPicker() {
   var batches = (res && res.ok && res.options) ? res.options : [];
 
   if (batches.length === 0) {
-    goto_(showBatchNotFoundView_);
+    // แสดงในหน้าเดิม ไม่ push หน้าใหม่ -- เดิม push แล้วกดย้อนกลับจะวนกลับมาหน้านี้ซ้ำ ออกไม่ได้
+    lastFailedRawScan_ = "";
+    showBatchNotFoundView_();
     return;
   }
 

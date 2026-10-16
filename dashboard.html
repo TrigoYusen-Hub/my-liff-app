@@ -1111,7 +1111,7 @@ body {
       </button>
       <img class="credits-logo" src="trigo-logo-credit.png" alt="TRIGO">
       <div class="credits-title">TRIGO YUSEN DASHBOARD</div>
-      <div class="credits-version">Version 3.4.0</div>
+      <div class="credits-version">Version 3.4.1</div>
       <div class="credits-divider"></div>
       <p class="credits-text">แอปพลิเคชันนี้คิดค้นและพัฒนาโดย Lon Banjong (TRIGO538)<br>สร้างขึ้นเพื่อใช้สำหรับดูภาพรวมยอดงานประจำวัน Site Yusen LCBTH เท่านั้น<br>ห้ามทำซ้ำ แก้ไข หรือดัดแปลงโดยไม่ได้รับอนุญาต</p>
       <div class="credits-divider"></div>
@@ -1166,11 +1166,15 @@ function hideLoadingOverlay_() {
 // นับคำขอที่ยังค้าง -- หน้า Home ยิง 4 ตัวพร้อมกัน ตัวหมุนต้องอยู่จนตัวสุดท้ายเสร็จ
 var apiInFlight_ = 0;
 
-async function api(action, extra) {
+// opts.silent = ไม่ขึ้นตัวหมุนบังจอ (เช็คสิทธิ์เบื้องหลัง)
+async function api(action, extra, opts) {
   var body = Object.assign({ action: action }, extra || {});
+  var silent = !!(opts && opts.silent);
 
-  apiInFlight_++;
-  showLoadingOverlay_();
+  if (!silent) {
+    apiInFlight_++;
+    showLoadingOverlay_();
+  }
 
   try {
     var res = await fetch(GAS_API, {
@@ -1181,9 +1185,47 @@ async function api(action, extra) {
 
     return await res.json();
   } finally {
-    apiInFlight_ = Math.max(0, apiInFlight_ - 1);
-    if (apiInFlight_ === 0) hideLoadingOverlay_();
+    if (!silent) {
+      apiInFlight_ = Math.max(0, apiInFlight_ - 1);
+      if (apiInFlight_ === 0) hideLoadingOverlay_();
+    }
   }
+}
+
+// ข้อมูลผู้ใช้ตอนเปิดแอพครั้งก่อน (แยกตาม LINE) -- เปิดแอพครั้งถัดไปแสดงหน้าแรกได้ทันที แล้วค่อยเช็คสิทธิ์สดเบื้องหลัง
+// (คำขอเปิดแอพใช้เวลา 4-10 วิ) ถ้าเช็คแล้วไม่มีสิทธิ์แล้ว จะเปิดแอพใหม่แล้วเจอหน้าไม่ได้รับอนุญาตเหมือนเดิม
+var INIT_CACHE_KEY_ = "trigo_init_Dashboard";
+
+function readCachedInit_(lineUserId) {
+  try {
+    var c = JSON.parse(localStorage.getItem(INIT_CACHE_KEY_) || "null");
+    return c && c.lineUserId === lineUserId && c.data && c.data.employee && c.data.employee.employeeId ? c.data : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeCachedInit_(lineUserId, data) {
+  try { localStorage.setItem(INIT_CACHE_KEY_, JSON.stringify({ lineUserId: lineUserId, savedAt: Date.now(), data: data })); } catch (e) {}
+}
+
+function clearCachedInit_() {
+  try { localStorage.removeItem(INIT_CACHE_KEY_); } catch (e) {}
+}
+
+function applyDashInit_(initData) {
+  currentEmployeeDisplayName = initData.employee.displayName || initData.employee.name;
+
+  if (initData.version) {
+    window.currentAppVersion = initData.version;
+    updateNotiBadge_();
+  }
+
+  var homeUserName = document.getElementById("homeUserName");
+  var homeUserSub = document.getElementById("homeUserSub");
+  if (homeUserName) homeUserName.textContent = initData.employee.name || "Unknown";
+  if (homeUserSub) homeUserSub.textContent = initData.employee.employeeId || "";
+  applyUserTypeBadge_(initData.employee.type);
 }
 
 document.addEventListener("DOMContentLoaded", async function () {
@@ -1208,34 +1250,46 @@ document.addEventListener("DOMContentLoaded", async function () {
     alert("liff.getProfile() ล้มเหลว: " + (e && e.message ? e.message : e));
   }
 
+  // เริ่มโหลดยอด 4 แท็บของวันนี้ไปพร้อมกับเช็คสิทธิ์เลย -- เดิมรอเช็คสิทธิ์เสร็จก่อน (4 วิขึ้นไป) ค่อยเริ่มโหลด
+  var today = new Date();
+  dashState.dateStr = formatDateForApi_(today);
+  dashState.dateLabel = formatDateLabel_(today, "วันนี้");
+  loadAllTabData_();
+
+  var initBody = { lineUserId: currentLineUserId, lineDisplayName: currentLineDisplayName, appName: "Dashboard" };
+  var cachedInit = currentLineUserId ? readCachedInit_(currentLineUserId) : null;
+
+  if (cachedInit) {
+    applyDashInit_(cachedInit);
+    goto_(showDashboardHome_);
+    api("getInitialData", initBody, { silent: true }).then(function(fresh) {
+      if (!fresh || !fresh.employee) return;
+      // ไม่มีสิทธิ์แล้ว -- ล้างที่จำไว้แล้วเปิดแอพใหม่ จะเจอหน้าไม่ได้รับอนุญาตเหมือนเปิดครั้งแรก
+      if (!fresh.employee.employeeId) {
+        clearCachedInit_();
+        window.location.reload();
+        return;
+      }
+      writeCachedInit_(currentLineUserId, fresh);
+      applyDashInit_(fresh);
+    }).catch(function() {});
+    return;
+  }
+
   try {
-    var initData = await api("getInitialData", { lineUserId: currentLineUserId, lineDisplayName: currentLineDisplayName, appName: "Dashboard" });
+    var initData = await api("getInitialData", initBody);
 
     if (!initData || !initData.employee || !initData.employee.employeeId) {
       showUnauthorizedView();
       return;
     }
 
-    currentEmployeeDisplayName = initData.employee.displayName || initData.employee.name;
-
-    if (initData.version) {
-      window.currentAppVersion = initData.version;
-      updateNotiBadge_();
-    }
-
-    var homeUserName = document.getElementById("homeUserName");
-    var homeUserSub = document.getElementById("homeUserSub");
-    if (homeUserName) homeUserName.textContent = initData.employee.name || "Unknown";
-    if (homeUserSub) homeUserSub.textContent = initData.employee.employeeId || "";
-    applyUserTypeBadge_(initData.employee.type);
+    applyDashInit_(initData);
+    if (currentLineUserId) writeCachedInit_(currentLineUserId, initData);
   } catch (e) {
     alert("โหลดข้อมูลผู้ใช้ไม่สำเร็จ: " + (e && e.message ? e.message : e));
     return;
   }
-
-  var today = new Date();
-  dashState.dateStr = formatDateForApi_(today);
-  dashState.dateLabel = formatDateLabel_(today, "วันนี้");
 
   goto_(showDashboardHome_);
 });
@@ -1481,31 +1535,43 @@ async function showDashboardHome_() {
     '<div id="dashSummaryWrap"></div>' +
     '<footer class="home-footer">' +
       '<div class="footer-brand">TRIGO YUSEN DASHBOARD</div>' +
-      '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.4.0<br>&copy; 2026 TRIGO</div>' +
+      '<div class="footer-meta" onclick="handleCreditTap_()">Version 3.4.1<br>&copy; 2026 TRIGO</div>' +
     '</footer>';
 
   await loadAllTabData_();
   renderDashboardSummary_();
 }
 
-async function loadAllTabData_() {
+var tabLoadInFlight_ = null;
+
+function loadAllTabData_() {
   var tabs = Object.keys(TAB_CONFIG);
+  var dateStr = dashState.dateStr;
   var needsFetch = tabs.some(function(t) {
-    return !dashState.tabData[t] || dashState.tabData[t].dateStr !== dashState.dateStr;
+    return !dashState.tabData[t] || dashState.tabData[t].dateStr !== dateStr;
   });
 
-  if (!needsFetch) return;
+  if (!needsFetch) return Promise.resolve();
 
-  var results = await Promise.all(tabs.map(function(t) {
-    return api(TAB_CONFIG[t].action, { dateStr: dashState.dateStr }).catch(function() {
+  // วันเดียวกันกำลังโหลดอยู่แล้ว (เริ่มตั้งแต่ตอนเปิดแอพ) -- รอตัวเดิม ไม่ยิงซ้ำ
+  if (tabLoadInFlight_ && tabLoadInFlight_.dateStr === dateStr) return tabLoadInFlight_.promise;
+
+  var promise = Promise.all(tabs.map(function(t) {
+    return api(TAB_CONFIG[t].action, { dateStr: dateStr }).catch(function() {
       return { ok: false };
     });
-  }));
-
-  tabs.forEach(function(t, idx) {
-    var res = results[idx];
-    dashState.tabData[t] = (res && res.ok) ? res : { dateStr: dashState.dateStr, missions: [] };
+  })).then(function(results) {
+    tabs.forEach(function(t, idx) {
+      var res = results[idx];
+      dashState.tabData[t] = (res && res.ok) ? res : { dateStr: dateStr, missions: [] };
+    });
   });
+
+  tabLoadInFlight_ = { dateStr: dateStr, promise: promise };
+  promise.then(function() {
+    if (tabLoadInFlight_ && tabLoadInFlight_.promise === promise) tabLoadInFlight_ = null;
+  });
+  return promise;
 }
 
 function sumMissions_(tab, field) {
