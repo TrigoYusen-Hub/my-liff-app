@@ -947,13 +947,22 @@ body {
   font-size: 1.7vh;
 }
 
-.capture-part-total span:first-child {
+.capture-part-total > span:first-child {
   color: var(--text-secondary);
   font-weight: 600;
 }
 
-.capture-part-total span:last-child {
+.capture-part-total > span:last-child {
+  color: var(--text-primary);
   font-weight: 700;
+}
+
+.capture-part-total .ok-val {
+  color: var(--accent-green);
+}
+
+.capture-part-total .ng-val {
+  color: var(--accent-red);
 }
 
 .noti-bell {
