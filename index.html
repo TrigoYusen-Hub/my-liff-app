@@ -3186,6 +3186,21 @@ function handleScanResult_(rawValue) {
             return;
         }
 
+        // พาร์ทเดียวกันอยู่หลายมิชชั่น (สต็อกแยกกัน) -- เลือกมิชชั่นก่อนกรอกจำนวน
+        if (data.state === "CHOOSE_MISSION") {
+          goto_(function() {
+            showScanMissionChoice_(data.options.map(function(opt) {
+              return { mission: opt.part.mission, sub: opt.part.partNumber + (opt.state === "BATCH_EXISTS" ? " · เคยรับ " + opt.batchInfo.total + " ชิ้น" : " · Batch ใหม่") };
+            }), "เลือกมิชชั่นที่จะรับงาน", function(idx) {
+              var opt = data.options[idx];
+              var picked = { ok: true, state: opt.state, employee: data.employee, rawScan: data.rawScan, parsed: data.parsed, part: opt.part, batchInfo: opt.batchInfo };
+              receiveState.scanResult = picked;
+              goto_(function() { showResultView(picked); });
+            });
+          });
+          return;
+        }
+
         receiveState.scanResult = data;
         goto_(function() { showResultView(data); });
 
@@ -3299,7 +3314,7 @@ async function onManualPartChange_() {
 
   if (partNumber) {
     try {
-      var res = await api("getBatchOptions", { partNumber: partNumber });
+      var res = await api("getBatchOptions", { partNumber: partNumber, mission: document.getElementById("manualMission").value });
       // รับงาน: โชว์ทุก Batch ที่เคยรับของ Part นี้ (ไว้เลือกรับซ้ำ) และยังพิมพ์ใหม่ได้
       // แถว "<batch>(Rework)" เป็นสต๊อกของงาน Rework ไม่ใช่ของที่รับเข้า -- ไม่โชว์เป็นตัวเลือกรับงาน
       setBatchComboOptions_("recv", (res && res.ok && res.options) ? res.options.filter(function(b) {
@@ -3914,7 +3929,7 @@ async function showWithdrawBatchPicker() {
   var res;
 
   try {
-    res = await api("getBatchOptions", { partNumber: withdrawState.partNumber });
+    res = await api("getBatchOptions", { partNumber: withdrawState.partNumber, mission: withdrawState.mission });
   } catch (e) {
     alert("โหลดข้อมูล Batch ไม่สำเร็จ");
     res = { ok: false, options: [] };
@@ -4067,6 +4082,7 @@ function saveWithdraw_() {
 
   api("withdrawStock", {
     payload: {
+      mission: withdrawState.mission,
       partNumber: withdrawState.partNumber,
       batch: withdrawState.batch,
       qty: withdrawState.qty,
@@ -4492,6 +4508,34 @@ function applyDailyWorkScanOption_(opt) {
   goto_(showDailyWorkQtyEntry);
 }
 
+// สแกนแล้วพาร์ท/Batch นี้อยู่หลายมิชชั่น (สต็อกแยกตามมิชชั่น) -- ให้เลือกก่อนไปต่อ
+// items: [{ mission, sub }] -- onPick(index) เรียกตอนกดเลือก
+function showScanMissionChoice_(items, heading, onPick) {
+  document.getElementById("receiveContent").innerHTML =
+    "<div class=\"picker-page\">" +
+      "<p class=\"picker-context\">พาร์ทนี้อยู่หลายมิชชั่น</p>" +
+      "<h2 class=\"picker-heading\">" + escapeHtml(heading) + "</h2>" +
+      "<div class=\"picker-list\" id=\"scanMissionChoiceList\"></div>" +
+    "</div>";
+
+  var list = document.getElementById("scanMissionChoiceList");
+  list.innerHTML = items.map(function(item, idx) {
+    return "<button type=\"button\" class=\"picker-item\" data-idx=\"" + idx + "\">" +
+      "<span class=\"picker-item-text\">" +
+        "<span class=\"picker-item-title\">" + escapeHtml(item.mission) + "</span>" +
+        "<span class=\"picker-item-sub\">" + escapeHtml(item.sub) + "</span>" +
+      "</span>" +
+      chevronIcon() +
+    "</button>";
+  }).join("");
+
+  list.querySelectorAll(".picker-item").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      onPick(Number(btn.getAttribute("data-idx")));
+    });
+  });
+}
+
 function showDailyWorkMissionChoice_(options) {
   document.getElementById("receiveContent").innerHTML =
     '<div class="picker-page">' +
@@ -4689,7 +4733,7 @@ async function onDailyWorkManualPartChange_() {
     // defect กับ Batch ไม่ขึ้นต่อกัน -- ยิงพร้อมกัน (วัดจริง: ทีละตัว 4.0-5.9 วิ, พร้อมกัน 1.6-2.2 วิ)
     var results = await Promise.all([
       api("getPartDefects", { partNumber: partNumber, mission: mission }).catch(function() { return null; }),
-      api("getBatchOptions", { partNumber: partNumber }).catch(function() { return null; })
+      api("getBatchOptions", { partNumber: partNumber, mission: mission }).catch(function() { return null; })
     ]);
 
     // เปลี่ยน Part/มิชชั่น หรือออกจากหน้านี้ระหว่างรอ -- ทิ้งผลชุดเก่า ไม่ให้ทับของใหม่
@@ -5448,7 +5492,7 @@ async function onPrintQrPartChange_() {
   if (partNumber) {
     var batchRes;
     try {
-      batchRes = await api("getBatchOptions", { partNumber: partNumber });
+      batchRes = await api("getBatchOptions", { partNumber: partNumber, mission: document.getElementById("pqMission").value });
     } catch (e) {
       batchRes = { ok: false, options: [] };
     }
@@ -5895,22 +5939,37 @@ function handleReturnNGScanResult_(rawValue) {
         return;
       }
 
-      returnNGState.mission = data.mission;
-      returnNGState.partNumber = data.partNumber;
-      returnNGState.partName = data.partName;
-      returnNGState.batch = data.batch;
-      returnNGState.ngOnHand = data.ngOnHand;
-
-      if (data.ngOnHand <= 0) {
-        goto_(function() { showNoStockView_("ไม่มีงาน NG คงเหลือ"); });
+      if (data.needsChoice) {
+        goto_(function() {
+          showScanMissionChoice_(data.options.map(function(opt) {
+            return { mission: opt.mission, sub: opt.partNumber + " · NG คงเหลือ " + opt.ngOnHand };
+          }), "เลือกมิชชั่นที่จะส่งคืน NG", function(idx) {
+            applyReturnNGScanOption_(data.options[idx]);
+          });
+        });
         return;
       }
 
-      goto_(showReturnNGQtyEntry);
+      applyReturnNGScanOption_(data);
     })
     .catch(function(err) {
       alert(err.message || err);
     });
+}
+
+function applyReturnNGScanOption_(data) {
+  returnNGState.mission = data.mission;
+  returnNGState.partNumber = data.partNumber;
+  returnNGState.partName = data.partName;
+  returnNGState.batch = data.batch;
+  returnNGState.ngOnHand = data.ngOnHand;
+
+  if (data.ngOnHand <= 0) {
+    goto_(function() { showNoStockView_("ไม่มีงาน NG คงเหลือ"); });
+    return;
+  }
+
+  goto_(showReturnNGQtyEntry);
 }
 
 async function showReturnNGManualEntryView() {
@@ -6015,7 +6074,7 @@ async function onReturnNGManualPartChange_() {
 
   if (partNumber) {
     try {
-      var res = await api("getBatchOptions", { partNumber: partNumber });
+      var res = await api("getBatchOptions", { partNumber: partNumber, mission: document.getElementById("ngManualMission").value });
       // ส่งคืน NG: เฉพาะ Batch ที่ยังมี NG คงเหลือ
       var batches = (res && res.ok && res.options) ? res.options.filter(function(b) {
         return Number(b.ngOnHand || 0) > 0;
@@ -6192,6 +6251,7 @@ function saveReturnNG_() {
 
   api("returnNGStock", {
     payload: {
+      mission: returnNGState.mission,
       partNumber: returnNGState.partNumber,
       batch: returnNGState.batch,
       qty: returnNGState.qty,
@@ -6316,16 +6376,31 @@ function handleCheckStockScanResult_(rawValue) {
         return;
       }
 
-      checkStockState.mission = data.mission;
-      checkStockState.partNumber = data.partNumber;
-      checkStockState.partName = data.partName;
-      checkStockState.batch = data.batch;
+      if (data.needsChoice) {
+        goto_(function() {
+          showScanMissionChoice_(data.options.map(function(opt) {
+            return { mission: opt.mission, sub: opt.partNumber + " · Available " + opt.available };
+          }), "เลือกมิชชั่นที่จะเช็คสต็อก", function(idx) {
+            applyCheckStockScanOption_(data.options[idx]);
+          });
+        });
+        return;
+      }
 
-      goto_(function() { showCheckStockResult_(data); });
+      applyCheckStockScanOption_(data);
     })
     .catch(function(err) {
       alert(err.message || err);
     });
+}
+
+function applyCheckStockScanOption_(data) {
+  checkStockState.mission = data.mission;
+  checkStockState.partNumber = data.partNumber;
+  checkStockState.partName = data.partName;
+  checkStockState.batch = data.batch;
+
+  goto_(function() { showCheckStockResult_(data); });
 }
 
 async function showCheckStockManualEntryView() {
@@ -6426,7 +6501,7 @@ async function onCheckStockManualPartChange_() {
 
   if (partNumber) {
     try {
-      var res = await api("getBatchOptions", { partNumber: partNumber });
+      var res = await api("getBatchOptions", { partNumber: partNumber, mission: document.getElementById("csManualMission").value });
       // เช็คสต็อก: ทุก Batch ที่มีใน Inventory ของ Part นี้
       setBatchComboOptions_("cs", (res && res.ok && res.options) ? res.options : []);
     } catch (e) {
@@ -6476,7 +6551,7 @@ function submitCheckStockManualEntry() {
 }
 
 function loadCheckStockResult_() {
-  api("checkStock", { partNumber: checkStockState.partNumber, batch: checkStockState.batch })
+  api("checkStock", { partNumber: checkStockState.partNumber, batch: checkStockState.batch, mission: checkStockState.mission })
     .then(function(data) {
       if (!data || !data.ok) {
         goto_(showBatchNotFoundView_);
