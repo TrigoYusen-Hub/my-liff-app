@@ -3769,10 +3769,36 @@ function missionTagUsage_(code) {
   ((missionAdmin_.data && missionAdmin_.data.missions) || []).forEach(function(m) {
     if (f && f.original && m.name === f.original.name) return;
     m.parts.forEach(function(p) {
-      if (p.tags.indexOf(code) !== -1) out.push({ mission: m.name, partNumber: p.partNumber, active: m.active });
+      if (p.tags.indexOf(code) !== -1) out.push({ mission: m.name, partNumber: p.partNumber, partName: p.partName, unitsPerBox: p.unitsPerBox, active: m.active });
     });
   });
   return out;
+}
+
+// เทียบเลขพาร์ทแบบไม่สนช่องว่าง: "F-630906-0011.AS" = "F - 630906 - 0011.AS"
+function missionPartLoose_(v) {
+  return String(v || "").replace(/\s+/g, "").toLowerCase();
+}
+
+// Tag นี้เป็นของพาร์ทในมิชชั่นอื่นที่เปิดอยู่ + ช่องเลขพาร์ทยังว่าง/เป็นพาร์ทเดียวกัน (ต่างแค่ช่องว่าง)
+// = พาร์ทเดียวกันตรวจหลายมิชชั่น -> ใช้เลขพาร์ทเดิมเป๊ะ ๆ (สต็อก/การเลือกมิชชั่นตอนสแกนอิงเลขพาร์ทตัวนี้)
+// แล้วเติมชื่อพาร์ท / QTY./Box ที่ยังว่างให้ด้วย
+function syncMissionPartFromSharedTags_(p) {
+  if (p.numberLocked) return;
+  var mine = missionPartLoose_(p.partNumber);
+  for (var i = 0; i < p.tags.length; i++) {
+    var u = missionTagUsage_(p.tags[i].scanCode).filter(function(x) {
+      return x.active && (!mine || missionPartLoose_(x.partNumber) === mine);
+    })[0];
+    if (!u) continue;
+    p.partNumber = u.partNumber;
+    if (!missionNorm_(p.partName)) p.partName = u.partName || "";
+    if (!String(p.unitsPerBox || "").trim() && u.unitsPerBox) {
+      p.unitsPerBox = String(u.unitsPerBox);
+      p.qtyFromTag = false;
+    }
+    return;
+  }
 }
 
 function missionTagState_(p, t) {
@@ -3789,9 +3815,9 @@ function missionTagState_(p, t) {
   if (t.types.length) notes.unshift(t.types.indexOf("LARGE") !== -1 ? "Tag ใหญ่" : "Tag เล็ก");
 
   var blocked = false;
-  var myPart = missionNorm_(p.partNumber).toLowerCase();
+  var myPart = missionPartLoose_(p.partNumber);
   missionTagUsage_(t.scanCode).forEach(function(u) {
-    var samePart = missionNorm_(u.partNumber).toLowerCase() === myPart;
+    var samePart = missionPartLoose_(u.partNumber) === myPart;
     if (!samePart && u.active) {
       notes.push("เป็นของพาร์ท " + u.partNumber + " มิชชั่น " + u.mission + " ที่เปิดอยู่ — บันทึกไม่ได้");
       cls = "bad";
@@ -4028,6 +4054,7 @@ function addMissionTag_(p, code, raw, parsed) {
       return false;
     }
     p.tags.push({ scanCode: code, raws: [], qtys: [], types: [], source: "manual" });
+    syncMissionPartFromSharedTags_(p);
     return true;
   }
 
@@ -4051,6 +4078,7 @@ function addMissionTag_(p, code, raw, parsed) {
       p.qtyFromTag = true;
     }
   }
+  syncMissionPartFromSharedTags_(p);
   return true;
 }
 
@@ -4147,6 +4175,7 @@ function validateMissionForm_() {
   var seenParts = {};
   f.parts.forEach(function(p, i) {
     var label = "พาร์ทที่ " + (i + 1);
+    syncMissionPartFromSharedTags_(p);
     var pn = missionNorm_(p.partNumber);
     if (!pn) errors.push(label + ": กรุณากรอกเลขพาร์ท");
     else if (seenParts[pn.toLowerCase()]) errors.push(label + ": เลขพาร์ท " + pn + " ซ้ำกับพาร์ทอื่น");
